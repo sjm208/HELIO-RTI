@@ -1,0 +1,20 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "helio_core_rs"
+description = "Rust compute kernels for Helio 3 (photometric stereo, relighting)"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = ["numpy>=2.0,<3"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dynamic = ["version"]
+
+[tool.maturin]
+# A plain extension module (no Python package around it): `import helio_core_rs`.
+module-name = "helio_core_rs"
+features = ["extension-module"]

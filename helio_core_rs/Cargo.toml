@@ -1,0 +1,34 @@
+[package]
+name = "helio_core_rs"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Rust compute kernels for Helio 3: photometric-stereo normal solvers and live relighting engines"
+license = "MIT"
+publish = false
+
+[lib]
+# The Python module is `helio_core_rs`; maturin builds the cdylib.  The rlib
+# lets `cargo test` and benches link the kernels without a Python interpreter.
+name = "helio_core_rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# PyO3 and rust-numpy move in lockstep: numpy 0.30 is built against pyo3 0.30.
+# Bump them together or the two crates bring in two copies of pyo3.
+pyo3 = "0.30.1"
+numpy = "0.30.0"
+rayon = "1.12.0"
+itoa = "1.0.18"
+
+[features]
+# maturin turns this on (see pyproject.toml).  Off for `cargo test`, which
+# has to link libpython to run.
+extension-module = ["pyo3/extension-module"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "unwind"        # a panic becomes a Python exception, not an abort of the app
+debug = false

@@ -1,0 +1,80 @@
+# Build artifacts
+/build/
+/dist/
+# Per-architecture output. build_dmg.sh takes BUILD_DIR/WORK_DIR so an
+# Intel build can be produced without clobbering the Apple silicon one.
+/build_intel/
+/dist_intel/
+*.pyc
+__pycache__/
+*.egg-info/
+
+# macOS
+.DS_Store
+*.icns
+# ...but the app icon is a build input, not an artefact:
+!packaging/helio_icon.icns
+helio.iconset/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+
+# Temp
+/tmp/
+
+# Large sample captures kept beside the tree (regenerable / not source)
+/HELIO_3D_Screenshot_*.png
+/MS-KK-*.jpg
+/PR-BSS-*.jpg
+/PR-RIT-*.jpg
+
+# Disk images and packaged installers
+*.dmg
+*.exe
+*.pkg
+
+# Parallax lives in its own repository at ../Parallax as of 3 September 2026.
+# It was briefly committed here; docs/DECISIONS.md in that repo records the split.
+Parallax/
+
+# HELIO Pro 3 build output (PyInstaller) and its disk images
+/build_qt*/
+/dist_qt*/
+packaging/helio3_dmg_background.png.bak
+# The Book Capture project lives beside this tree, never in it
+/HELIO_Book_Capture*/
+/HELIO_Book_Capture*.zip
+/HELIO_Book_Capture*
+
+# views and pictures saved into the project folder
+/*.tif
+/*.tiff
+
+# helio_core_rs (Rust): cargo build output and maturin wheels.
+# Cargo.lock IS committed - the crate is an application component, not a library.
+/helio_core_rs/target/
+/target/
+*.so
+*.pyd
+/.venv/
+
+# Helio 3 build output (build_helio3.sh) and the Rust wheel (build_rust.sh)
+/build_qt/
+/dist_qt/
+/helio_core_rs/wheelhouse/
+/helio_core_rs/target/
+# The promotion page's raw window captures (the page uses the compressed img/)
+/promotion/screenshots/
+
+# The test photographs are kept out of the public copy (tests find them through
+# HELIO_TEST_IMAGES), and the pictures the tests and tools write are output
+/test images/
+/tests/golden_contact_sheet.png
+/tests/golden_diff.png
+/tests/*_real_capture.png

@@ -1,0 +1,111 @@
+# Builds and tests the Rust kernels (helio_core_rs) on real Apple silicon, so the macOS
+# build is proven without a Mac at hand.  macOS runner minutes are billed at 10x on private
+# repositories, so this runs only when this file changes on the working branch, or by hand
+# (Actions > macOS (Apple silicon) > Run workflow, once the file is on the default branch).
+name: macOS (Apple silicon)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/serene-mccarthy-wvdrix]
+    paths: [".github/workflows/macos.yml"]
+
+jobs:
+  kernels:
+    runs-on: macos-14            # Apple silicon (arm64)
+    timeout-minutes: 45
+    env:
+      QT_QPA_PLATFORM: offscreen
+      HELIO_PREFS: /tmp/helio_prefs_ci.json
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"       # the version the app is built with
+
+      - name: Rust toolchain (both Mac targets, for the universal2 wheel)
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+          rustc --version; cargo --version
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            helio_core_rs/target
+          key: macos-cargo-${{ hashFiles('helio_core_rs/Cargo.lock') }}
+
+      - name: Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "maturin>=1.9,<2" "numpy>=2.0,<3" scipy "opencv-contrib-python-headless>=4.10" \
+              Pillow matplotlib trimesh scikit-image scikit-learn tifffile
+          python -m pip install --no-deps rvt-py==2.2.1
+          # optional (the GeoTIFF writer falls back to OpenCV without it): a wheel or nothing
+          python -m pip install --only-binary=:all: rasterio || echo "rasterio: no wheel for this runner, skipped"
+          python -c "import platform, numpy, scipy, cv2; print(platform.platform(), platform.machine(), numpy.__version__, scipy.__version__, cv2.__version__)"
+
+      - name: Rust unit tests
+        working-directory: helio_core_rs
+        run: cargo test --release
+
+      - name: Build the extension (Apple silicon) with the repository's own script
+        run: PYTHON=python REQUIRE_RUST=1 ./build_rust.sh
+
+      - name: Build the universal2 wheel (arm64 + x86_64)
+        working-directory: helio_core_rs
+        run: |
+          python -m maturin build --release --target universal2-apple-darwin --out ../wheelhouse
+          ls -la ../wheelhouse
+          file ../wheelhouse/*.whl || true
+
+      - name: Python tests with the Rust kernels
+        run: |
+          export PYTHONPATH="$PWD"
+          fail=0
+          for t in test_rust_lls.py test_rust_relight.py test_export_speed.py test_depth_memory.py \
+                   test_memory_plan.py test_new_views.py test_work_scale.py test_engines.py test_science.py \
+                   test_texture_parity.py test_relight_export.py test_mesh.py test_geotiff.py test_levelling.py \
+                   test_ridge.py test_grid_mesh.py test_pca_ica_determinism.py; do
+            if python "tests/$t" > "out_$t.txt" 2>&1; then echo "ok    $t: $(grep -E 'Results:' "out_$t.txt" | tail -1)"
+            else echo "FAIL  $t"; grep -E "FAIL|Error|error" "out_$t.txt" | head -20; tail -6 "out_$t.txt"; fail=1; fi
+          done
+          exit $fail
+
+      - name: Python tests on the NumPy kernels (the fallback)
+        if: always()
+        run: |
+          export PYTHONPATH="$PWD" HELIO_NO_RUST=1
+          fail=0
+          for t in test_rust_relight.py test_engines.py test_science.py test_export_speed.py; do
+            if python "tests/$t" > "nr_$t.txt" 2>&1; then echo "ok    $t: $(grep -E 'Results:' "nr_$t.txt" | tail -1)"
+            else echo "FAIL  $t"; grep -E "FAIL|Error|error" "nr_$t.txt" | head -20; tail -6 "nr_$t.txt"; fail=1; fi
+          done
+          exit $fail
+
+      - name: Speed on this machine (information)
+        if: always()
+        run: |
+          export PYTHONPATH="$PWD"
+          python - <<'PY'
+          import time, numpy as np, helio_core_rs as rs, platform
+          print(platform.processor() or platform.machine(), "·", rs.threads(), "threads")
+          rng = np.random.default_rng(0)
+          L = rng.random((8, 3)); L /= np.linalg.norm(L, axis=1, keepdims=True)
+          I = (rng.random((8, 4_000_000)) * 255).astype(np.float32)
+          P = np.linalg.pinv(L)
+          t = time.perf_counter(); rs.lls_normals(P, I); a = time.perf_counter() - t
+          t = time.perf_counter(); np.linalg.lstsq(L, I.astype(np.float64), rcond=None); b = time.perf_counter() - t
+          print(f"normals for 4 MP x 8 lights: Rust {a:.3f} s, NumPy {b:.3f} s ({b / a:.0f}x)")
+          PY
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: helio_core_rs-macos-universal2-wheel
+          path: wheelhouse/*.whl
+          if-no-files-found: error

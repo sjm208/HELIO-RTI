@@ -1,0 +1,306 @@
+<title>Helio for Manuscripts and Bindings</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a bound-book page. One reading column with the pictures running wider than the text, five numbered steps, gilt used only for the marks that matter. */
+:root {
+  --paper: #f2f3f6;
+  --panel: #ffffff;
+  --ink: #141b2c;
+  --ink-2: #4b556a;
+  --rule: #d7dbe3;
+  --gilt: #9a6f17;
+  --gilt-soft: rgba(154, 111, 23, .12);
+  --shadow: 0 1px 2px rgba(20, 27, 44, .06), 0 12px 32px rgba(20, 27, 44, .10);
+  --display: "Cormorant Garamond", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --body: "IBM Plex Sans", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0c111d; --panel: #131a2a; --ink: #e9ebf1; --ink-2: #9ba4b7; --rule: #232c40;
+    --gilt: #e0b357; --gilt-soft: rgba(224, 179, 87, .12);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 40px rgba(0, 0, 0, .45);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0c111d; --panel: #131a2a; --ink: #e9ebf1; --ink-2: #9ba4b7; --rule: #232c40;
+  --gilt: #e0b357; --gilt-soft: rgba(224, 179, 87, .12);
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 16px 40px rgba(0, 0, 0, .45);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--paper); color: var(--ink);
+  font: 400 17px/1.6 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 1120px; margin: 0 auto; }
+.text { max-width: 640px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: 1.02; }
+h2 { font-size: clamp(1.9rem, 3.6vw, 2.6rem); line-height: 1.1; }
+h3 { font-size: 1.55rem; line-height: 1.15; }
+p { margin: 0; }
+.eyebrow { font: 500 .78rem/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--gilt); }
+.lede { font-size: 1.2rem; color: var(--ink-2); }
+.muted { color: var(--ink-2); }
+figure { margin: 0; }
+img { display: block; width: 100%; height: auto; max-width: 100%; }
+.shot { border-radius: 10px; overflow: hidden; box-shadow: var(--shadow); background: #0b0f19; }
+figcaption { font: 400 .82rem/1.45 var(--mono); color: var(--ink-2); margin-top: 10px; }
+figcaption b { color: var(--ink); font-weight: 500; }
+
+/* masthead */
+.mast { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  padding-block: 28px 0; border-bottom: 1px solid var(--rule); padding-bottom: 14px; }
+.mark { font: 600 1.5rem/1 var(--display); letter-spacing: .02em; }
+.mark span { color: var(--gilt); }
+.mast .meta { font: 400 .8rem/1.3 var(--mono); color: var(--ink-2); }
+
+/* hero */
+.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 48px; align-items: center; padding-block: 56px 40px; }
+.hero .copy { display: grid; gap: 22px; min-width: 0; }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font: 500 .78rem/1 var(--mono); padding: 7px 10px; border: 1px solid var(--rule); border-radius: 999px; color: var(--ink-2); background: var(--panel); }
+
+/* steps */
+section { padding-block: 56px; border-top: 1px solid var(--rule); }
+.steps { display: grid; gap: 72px; margin-top: 40px; }
+.step { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 40px; align-items: start; }
+.step .copy { display: grid; gap: 14px; min-width: 0; position: sticky; top: calc(24px + env(safe-area-inset-top, 0px)); }
+.num { font: 600 3.4rem/1 var(--display); color: var(--gilt); }
+.step ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; color: var(--ink-2); }
+.step li::marker { color: var(--gilt); }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+
+/* readings */
+.readings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 32px; }
+.readings figure:first-child { grid-column: span 2; grid-row: span 2; }
+.readings .shot { border-radius: 6px; }
+
+/* new */
+.new { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin-top: 32px; border-top: 1px solid var(--rule); }
+.new div { padding: 22px 22px 22px 0; border-bottom: 1px solid var(--rule); display: grid; gap: 8px; align-content: start; min-width: 0; }
+.new div:not(:nth-child(3n)) { border-right: 1px solid var(--rule); }
+.new div:not(:nth-child(3n+1)) { padding-left: 22px; }
+.new h3 { font-size: 1.3rem; }
+.new p { color: var(--ink-2); font-size: .95rem; }
+
+.formats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+.formats .chip { color: var(--ink); }
+
+.get { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 48px; align-items: start; }
+.box { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 24px; display: grid; gap: 12px; }
+.box dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: .95rem; }
+.box dt { font: 500 .78rem/1.6 var(--mono); color: var(--ink-2); text-transform: uppercase; letter-spacing: .08em; }
+.box dd { margin: 0; }
+footer { padding-block: 32px 48px; border-top: 1px solid var(--rule); font: 400 .8rem/1.5 var(--mono); color: var(--ink-2); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+
+@media (max-width: 860px) {
+  .hero, .step, .get { grid-template-columns: 1fr; gap: 28px; }
+  .step .copy { position: static; }
+  .readings { grid-template-columns: 1fr 1fr; }
+  .readings figure:first-child { grid-column: span 2; grid-row: auto; }
+  .new { grid-template-columns: 1fr; }
+  .new div, .new div:not(:nth-child(3n+1)) { padding-left: 0; border-right: 0 !important; }
+}
+@media (max-width: 520px) {
+  body { font-size: 16px; }
+  .pair, .readings { grid-template-columns: 1fr; }
+  .readings figure:first-child { grid-column: auto; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero .shot img { animation: rise 1.2s cubic-bezier(.2, .7, .2, 1) both; }
+  @keyframes rise { from { transform: scale(1.04); filter: brightness(.7); } to { transform: none; filter: none; } }
+}
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <div class="mark">Helio<span>.</span></div>
+    <div class="meta">Photometric stereo &amp; RTI · Apple silicon · macOS 13+</div>
+  </header>
+
+  <div class="hero">
+    <div class="copy">
+      <p class="eyebrow">For manuscripts and rare bindings</p>
+      <h1>The surface, from the photographs.</h1>
+      <p class="lede">Photograph an object from a fixed camera, moving only the light. Helio turns that handful of frames into the surface itself: its relief, its tooling and impressions, lit any way you like, measured, modelled in 3D and ready to publish.</p>
+      <div class="facts">
+        <span class="chip">8 normal solvers</span>
+        <span class="chip">41 views</span>
+        <span class="chip">ISO 25178 roughness</span>
+        <span class="chip">60 export formats</span>
+      </div>
+    </div>
+    <figure>
+      <div class="shot"><img src="img/boar_exaggerated.jpg" alt="An embroidered gold boar on a velvet binding, shown with exaggerated shading so every couched thread stands out"></div>
+      <figcaption><b>Embroidered boar, velvet binding.</b> Exaggerated shading from four frames · chrome ball 24–38° · 6,521 × 6,881 px</figcaption>
+    </figure>
+  </div>
+
+  <section>
+    <div class="text">
+      <p class="eyebrow">How it works</p>
+      <h2>Five steps, one window</h2>
+      <p class="lede" style="margin-top:14px">The bar at the bottom always names the next thing to do. Every control explains itself when you hover over it.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="copy">
+          <div class="num">1</div>
+          <h3>Capture</h3>
+          <p>Drop a folder of photographs on the window. Helio finds the chrome ball, reads the highlight in every frame and plots each light on a dome, with a verdict on how well the lights are spread.</p>
+          <ul>
+            <li>One ball or two, a light file, a saved rig, or lights placed by hand</li>
+            <li>Drift check and frame alignment before you solve</li>
+            <li>Grey card and flat areas to even out a hand-held flash</li>
+          </ul>
+        </div>
+        <figure>
+          <div class="shot"><img src="img/ui_capture.jpg" alt="Helio's Capture page with the chrome ball found and each frame's highlight marked"></div>
+          <div class="pair">
+            <figure><div class="shot"><img src="img/ui_hand_dome.jpg" alt="Placing lights by hand on a virtual dome"></div><figcaption>No ball? Place the lights by hand on the dome.</figcaption></figure>
+            <figure><div class="shot"><img src="img/ui_process.jpg" alt="Process page with three quick looks and a score"></div><figcaption>Quick look: a small solve in seconds, scored.</figcaption></figure>
+          </div>
+        </figure>
+      </div>
+
+      <div class="step">
+        <div class="copy">
+          <div class="num">2</div>
+          <h3>Process</h3>
+          <p>Try settings on a small copy in seconds, keep the best, then solve the full surface. The heaviest arithmetic runs in Rust across every core.</p>
+          <ul>
+            <li>Least squares, shadow-rejecting, near-field and sparse-outlier solvers</li>
+            <li>Gold and metal re-solved on their own, the rest left alone</li>
+            <li>Each lamp's strength found from the photographs themselves</li>
+            <li>Any region again at full resolution</li>
+          </ul>
+        </div>
+        <figure>
+          <div class="shot"><img src="img/boar_relit.jpg" alt="The boar relit from the north-west"></div>
+          <figcaption><b>Relit.</b> The light moved after the fact: a drag on the dome, and the whole surface follows.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step">
+        <div class="copy">
+          <div class="num">3</div>
+          <h3>Inspect</h3>
+          <p>Forty-one ways to read the same surface, each answering a different question: where the light rakes, where the relief is, where the grooves run, where the gold shines. The loupe shows full resolution under the pointer.</p>
+          <ul>
+            <li>Relighting, raking, exaggerated shading, MSRM, openness, curvature</li>
+            <li>Ridge and groove detection for drypoint and tooling</li>
+            <li>Annotations on layers, with a scholar's figure set</li>
+            <li>A live 3D relief with sections, contours and a flood plane</li>
+          </ul>
+        </div>
+        <figure>
+          <div class="shot"><img src="img/ui_inspect.jpg" alt="Helio's Inspect page showing the boar under exaggerated shading"></div>
+          <div class="pair">
+            <figure><div class="shot"><img src="img/relief_3d.jpg" alt="The binding as a 3D relief"></div><figcaption>The 3D relief, shaded by the normals.</figcaption></figure>
+            <figure><div class="shot"><img src="img/seals_exaggerated.jpg" alt="Two seal impressions on a parchment sheet"></div><figcaption>Seal impressions on a parchment deed.</figcaption></figure>
+          </div>
+        </figure>
+      </div>
+
+      <div class="step">
+        <div class="copy">
+          <div class="num">4</div>
+          <h3>Measure</h3>
+          <p>Set the scale from a ruler in the shot, then measure in millimetres: distances, height profiles with ISO 4287 roughness, areas, volumes and ISO 25178 surface statistics.</p>
+          <ul>
+            <li>Colour checked against a ColorChecker (ISO 19264, FADGI)</li>
+            <li>Change maps between two campaigns</li>
+            <li>Uncertainty for every pixel, so you know what to trust</li>
+          </ul>
+        </div>
+        <figure>
+          <div class="shot"><img src="img/ui_measure.jpg" alt="Helio's Measure page with a height profile across the parchment"></div>
+          <figcaption><b>A height profile</b> across the parchment, with its roughness.</figcaption>
+        </figure>
+      </div>
+
+      <div class="step">
+        <div class="copy">
+          <div class="num">5</div>
+          <h3>Publish</h3>
+          <p>Tick what you need by what it is for: images, surface maps, 3D models, web viewers, reports, archives, GIS. Choose who a model is for and Helio sets the density, texture size and files to suit.</p>
+          <ul>
+            <li>A publication sheet on A3, A4 or US Letter, for print or email</li>
+            <li>Offline web viewers, and a phone view from a QR code</li>
+            <li>Museum and repository records: IIIF, LIDO, CIDOC-CRM, Zenodo</li>
+          </ul>
+        </div>
+        <figure>
+          <div class="shot"><img src="img/ui_publish.jpg" alt="Helio's Publish page listing 3D model formats with their options"></div>
+          <figcaption><b>3D models,</b> made for Blender, the web, phones, the archive or a 3D printer.</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="text">
+      <p class="eyebrow">One capture, many readings</p>
+      <h2>Each view shows something the others hide</h2>
+    </div>
+    <div class="readings">
+      <figure><div class="shot"><img src="img/boar_msrm.jpg" alt="Multi-scale relief model of the boar"></div><figcaption><b>Multi-scale relief.</b> Every raised thread, whatever the light.</figcaption></figure>
+      <figure><div class="shot"><img src="img/boar_ridges.jpg" alt="Ridge and groove detector on the boar"></div><figcaption><b>Ridges and grooves.</b></figcaption></figure>
+      <figure><div class="shot"><img src="img/boar_rbf.jpg" alt="RBF relighting of the boar"></div><figcaption><b>RBF relight.</b> Gold as photographed.</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <div class="text">
+      <p class="eyebrow">New in this release</p>
+      <h2>Built for gold, lamps and big captures</h2>
+    </div>
+    <div class="new">
+      <div><h3>Gold and metal</h3><p>Gilding, embroidered gold and clasps are found and solved on their own, with a solver that sets highlights aside. Paper, leather and cloth keep the usual solver.</p></div>
+      <div><h3>Unequal lamps</h3><p>Each lamp's strength comes from the photographs, with nothing to mark. On a hand-lit binding it halved the false tilt of a flat grey card.</p></div>
+      <div><h3>Shine kept sharp</h3><p>RBF relighting interpolates your own photographs, so highlights on gold, vellum and wax stay where and as sharp as they were.</p></div>
+      <div><h3>Full-size regions</h3><p>Solve a 75-megapixel deed small to look at it, then any region again at full resolution, using a fraction of the memory.</p></div>
+      <div><h3>Models made for</h3><p>Blender, the web, phones, the archive or printing: density, texture size, JPEG or PNG and a closed base, set together.</p></div>
+      <div><h3>Rust inside</h3><p>The solver, relighting and mesh writing run in Rust on every core. The four-frame binding here, solved at a third of its 45 megapixels, took under five seconds.</p></div>
+    </div>
+    <div class="formats">
+      <span class="chip">GLB</span><span class="chip">OBJ</span><span class="chip">PLY</span><span class="chip">STL</span><span class="chip">USDZ</span><span class="chip">E57</span>
+      <span class="chip">RTI web package</span><span class="chip">OpenLIME</span><span class="chip">IIIF</span><span class="chip">DeepZoom</span>
+      <span class="chip">16-bit PBR maps</span><span class="chip">GeoTIFF</span><span class="chip">QGIS</span><span class="chip">PDF sheet</span>
+      <span class="chip">LIDO</span><span class="chip">CIDOC-CRM</span><span class="chip">Zenodo</span><span class="chip">.lp light files</span>
+    </div>
+  </section>
+
+  <section class="get">
+    <div class="text" style="display:grid;gap:16px">
+      <p class="eyebrow">Getting it</p>
+      <h2>One disk image, one double-click</h2>
+      <p>Open the disk image and double-click <b>Install Helio</b>. It copies Helio to Applications and clears the download flag that otherwise makes macOS call an unsigned app "damaged". Nothing runs at startup and nothing is sent anywhere.</p>
+      <p class="muted">Helio is open source under the MIT licence. The solvers are plain NumPy and SciPy with Rust kernels; no GPU or deep-learning runtime is needed.</p>
+    </div>
+    <div class="box">
+      <dl>
+        <dt>Mac</dt><dd>Apple silicon (M1 or later)</dd>
+        <dt>System</dt><dd>macOS 13 Ventura or later</dd>
+        <dt>Memory</dt><dd>16 GB; 32 GB for large stacks</dd>
+        <dt>Capture</dt><dd>3 or more frames, fixed camera, moving light; a chrome ball, a light file or lights by hand</dd>
+        <dt>Contact</dt><dd>Scott Maloney</dd>
+      </dl>
+    </div>
+  </section>
+
+  <footer>
+    <span>Helio · © Scott Maloney 2026 · MIT licence</span>
+    <span>Pictures: a velvet binding with an embroidered boar; a parchment deed with two seals</span>
+  </footer>
+</div>

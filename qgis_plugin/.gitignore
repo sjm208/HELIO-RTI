@@ -1,0 +1,5 @@
+dev/.pyhome/
+dev/.pylib/
+dev/pkgs/
+dev/out_*/
+__pycache__/

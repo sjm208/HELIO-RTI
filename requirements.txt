@@ -1,0 +1,92 @@
+# Helio runtime dependencies.
+#
+# The lower bounds matter. opencv-contrib-python releases before 4.10 were
+# built against the NumPy 1.x C API and abort at import with
+# "numpy.core.multiarray failed to import" as soon as NumPy 2 is installed —
+# which is exactly how an unpinned environment breaks. Keep numpy and opencv
+# moving together.
+#
+# Verified working combinations on Python 3.12 (full test suite + GUI build):
+#   numpy 2.2.6 · opencv-contrib-python 4.12.0.88
+#   numpy 2.4.6 · opencv-contrib-python 5.0.0.93
+
+numpy>=2.0,<3
+PySide6>=6.7                  # the interface (helio_qt)
+PyOpenGL>=3.1                 # Helio's 3D relief and high-detail window
+scikit-image>=0.22            # micro-features, toolpaths
+opencv-contrib-python>=4.10
+Pillow>=10.0
+scipy>=1.11
+matplotlib>=3.8
+trimesh>=4.0
+vispy>=0.14
+glfw>=2.6
+
+# Relief Visualisation Toolbox. OPTIONAL to import, but NOT optional if you want
+# the same pictures: without it, Positive/Negative Openness, Anisotropic SVF and
+# the other RVT-backed engines silently fall back to a different implementation.
+# Measured on a clean environment that lacked it: Negative Openness differed from
+# the approved reference on 99.8% of pixels (MAE 180/255), Positive Openness on
+# 96.8%. Nothing warned - the engines just drew something else.
+#
+# Install with --no-deps. rvt-py declares GDAL, which needs a system library and
+# fails to build from source, but HELIO only calls rvt.vis (sky_view_factor,
+# msrm, slope_aspect) which is pure numpy/scipy:
+#
+#     pip install --no-deps rvt-py==2.2.1
+#   pip install --no-deps rvt-py==2.2.1
+#
+# It is deliberately NOT a requirement line below: pip has no per-package
+# --no-deps, so listing it makes `pip install -r requirements.txt` try to
+# build GDAL and fail for everyone. Install it with the command above.
+
+# Feature-gating optionals. Each is imported inside a try/except, so the app
+# starts happily without them and the feature simply is not there - which is
+# how they went undeclared for so long. Install them unless you know you do not
+# want the feature:
+#
+#   scikit-learn   Spectral Unmix / ICA panel (FastICA, PCA)
+#   tifffile       16-bit TIFF reads and writes in the facsimile and
+#                  displacement exports
+#   rasterio       GeoTIFF writer with full tag support. WITHOUT it the writer
+#                  falls back to cv2 - still georeferenced, fewer tags. Note it
+#                  cannot currently be bundled into the Intel .app: py2app's
+#                  macholib cannot rewrite the load paths in its bundled
+#                  libgif ("New Mach-O header is too large to relocate").
+scikit-learn>=1.3
+tifffile>=2023.7
+
+# Camera raw. Optional at runtime - helio.io.raw_loader.available() gates the
+# feature and the file-type lists only offer raw when a decoder is present -
+# but a photometric solve from 8-bit JPEG is fitting a linear law to data that
+# has already been gamma-curved and lossily compressed, so this is the single
+# biggest upgrade to input quality available.
+rawpy>=0.18
+# ⚠ Building the Intel (x86_64) DMG: pip resolves rawpy to 0.27, which has no
+# cp312 x86_64 wheel — it falls back to a source build, fails, and leaves the
+# venv with no decoder. Install rawpy==0.25.1 explicitly there.
+# ⚠ Same venv: rasterio must be pinned to 1.3.11. The 1.5.x wheels bundle a
+# libgif whose Mach-O headers macholib cannot rewrite, and py2app dies with
+# "New Mach-O header is too large to relocate".
+rasterio>=1.3          # optional; see the note above about the Intel build
+
+# QR codes for the Sharing tab.
+#
+# This was never listed, so no build has ever contained it, so HAS_QR has been
+# False in every shipped copy since the feature was written. The fallback did
+# not fail — it wrote a white PNG with the URL typed across it, which saves and
+# opens and is not a QR code. A feature that quietly produces a useless file is
+# worse than one that is missing, because nobody reports it.
+qrcode>=7.4
+
+# Helio's USDZ for AR (OpenUSD) and E57 point clouds. Optional: without them
+# those two formats say they cannot be written.
+usd-core>=24.0
+pye57>=0.4
+
+# Development only, not bundled: checks the OpenPBR material Helio writes against
+# MaterialX's own node library (tests/test_masters.py). The app writes it without it.
+MaterialX>=1.39
+
+# Packaging only — not needed to run from source.
+pyinstaller>=6.0

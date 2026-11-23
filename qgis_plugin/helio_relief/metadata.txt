@@ -1,0 +1,89 @@
+[general]
+name=Helio Relief
+qgisMinimumVersion=4.0
+description=Relief renders, hillshades, measurement and publication plates for heritage height maps, with one-click import of Helio exports.
+about=A relief-visualisation and measurement toolkit for heritage height maps from photometric stereo or photogrammetry (manuscripts, bindings, paintings, prints, copper plates, seals, stone), made to sit beside Helio. Import a Helio export folder in one click: both integrations, the colour, the normal map, the fit uncertainty and any metal mask, aligned and compared. It renders Clean relief (smooth grey relief lit from every side), studio relief with soft cast shadows, QGIS-formula and multi-shade hillshades, Brown (2014) texture shading, sky-view factor and colour composites; separates detail from noise by feature size; measures profiles, grooves and volumes in real units; traces incised lines to a GeoPackage; and lays out print-ready publication plates. A zoomable live preview with a sun dial and clickable shade thumbnails shows every adjustment; full-resolution jobs run in the background, tile gigapixel scans and need only the numpy, scipy and GDAL that ship with QGIS. Every output carries a JSON provenance record.
+version=4.1.0
+author=Scott Maloney
+email=scott.maloney@example.com
+homepage=
+tracker=
+repository=
+category=Raster
+icon=icon.png
+experimental=False
+deprecated=False
+tags=photometric stereo,photogrammetry,heritage,relief,hillshade,multidirectional hillshade,texture shading,normal map,measurement,line tracing,sky-view factor,Helio
+changelog=
+    4.1.0
+    - Presets menu at the top: 14 presets by object, every look by family, and your own.
+    - A Helio export with an object type chooses its preset; sections and annotations made in Helio load as labelled layers.
+    - Coloured-light looks work with a colour composite; seven near-duplicate looks removed.
+    - Import finds the package inside the folder chosen; Bodleian references removed; everything says Helio.
+    4.0.0
+    - Renamed Helio Relief (was the Heritage Photometric Stereo Suite). Install it in place of the old plugin; saved looks, presets and project settings carry over.
+    - Import HELIO also loads Helio's fit uncertainty (where the normals are least believable) and, when Helio's metal-aware solve ran, where the normals were re-solved over gilding or metal - both hidden, styled the same on every object, to switch on over a render.
+    - Removed the Analysis tab (PCA / ICA / PTM / HSH fitted to lights synthesised from the height map), the light stack's relighting web viewer and turntable, and the facsimile print check. Helio fits PTM / HSH and builds its relighting viewer from the photographs themselves, which hold what a height map cannot.
+    3.1.0
+    - Detail tab: separate the height map's feature sizes and watch them live. A chart shows how much relief the middle of the view holds at each size (its spectrum) and the noise fitted to it - or that none is resolvable, as on integrated photometric-stereo maps - with handles to drag for up to three bands, each with its own gain; an orange curve shows what is kept at each size. Separate detail from noise with noise suppression from the fitted spectrum (Wiener), a texture gate that keeps strong marks and damps faint even grain, and edge-preserving clean-up - and look at what was removed to check. Show the result as signed relief (grey or colour), a hillshade, Clean relief, line strength or where it is strong - every way at once in the side panel. Save the band as a height map (and use it as one), save the display at full resolution, or trace its lines. Nothing in the existing renders changes.
+    - Line tracing: live tracing of the view as the settings or the view change; tracing in the Detail tab's band; bridge gaps (a groove broken by wear or a crossing line comes back as one line), smooth curves and drop weak lines; every line's depth and orientation in the GeoPackage; Clear lines, Undo last trace (removes the layer and deletes its file) and Reset. Tracing the same area twice no longer overwrites the first GeoPackage. All the new options start off, so tracing gives the same lines as before until you use them.
+    - Undo and redo for every setting: ↶ ↷ beside Start here, or Ctrl+Z / Ctrl+Shift+Z. A burst of edits is one step; the view stays where it is.
+    3.0.0
+    - Import HELIO…: one click from a Helio export folder (the GIS DEM export or the MorphoSource package) to a ready surface - both integrations, the colour image and the normal map loaded in a group; PNG / JPEG files copied to tiled GeoTIFFs so they read fast; the colour aligned to the height map; the two integrations compared and the better one chosen; optionally the standard renders (grey Clean relief, colour composite, QGIS multidirectional hillshade) at full resolution. HELIO's millimetre units are recognised, so the scale bar no longer reads the placeholder CRS's metres.
+    - Normal maps: Clean relief can be shaded straight from the photometric-stereo normal map - integrated window by window, with the drift removal in the same spectral step - every detail the normals hold, and no drift. The green channel's direction is detected against the height map (HELIO's normal maps read the DirectX way despite their OpenGL label).
+    - Tools tab. Measure: a Measure tool above the preview gives the height profile along a line - a groove's depth and width below the surface's trend, a ridge's height - or a box's relief and hollow volume, in real units, with a profile graph, CSV export, a height scale and the scale set from a line of known length. Line tracing: incised or raised lines to a styled GeoPackage layer, with an automatic line width, also drawn over the preview. Integration picker: Poisson against Frankot-Chellappa at nine places - fine detail, pixel noise, drift, agreement - with a recommendation, thumbnails and a fused height map (one's form, the other's detail). Publication plate: a print-ready A4, A3 or Letter page (PDF, PNG or TIFF, 150-600 dpi) with the grey relief, the colour composite and a close-up of the view, true scale bars, a title and a caption.
+    - Start here: a six-step guide whose buttons do each step, shown the first time the plugin opens.
+    2.11.0
+    - Align colour / albedo: a button beside the Colour / albedo layer finds where the colour image sits on the height map - scale, rotation, shear and offset, from the fine detail both show (phase correlation of full-resolution patches, least squares, outliers rejected) - and adds an aligned copy: a VRT on the height map's exact pixel grid, georeferenced like it, 16 bits kept, that QGIS draws right over the height map. The original layer is hidden, not changed. On a HELIO export (a 9101 x 6421 albedo inside a 9375 x 6627 depth map, turned by 0.29°) 28 of 30 places agree to 0.6 px. A note under the layer says when a colour image is not on the height map's grid; an unrelated image is refused.
+    - Colour composite (albedo × relief) in Clean relief and the other grey modes, fitted to archive colour composites of tooled bindings (their albedo, shaded render and composite, pixel by pixel): exposure × albedo^gamma × (shading / flat grey)^relief, with Colour relief, Colour gamma and Colour exposure sliders. 16-bit albedos are read against their own white level, so they are no longer dark. Quick export and Export view write the colour composite when it is on; a 'Clean relief · Colour composite (albedo × relief)' look.
+    2.10.0
+    - Clean relief calibrated against archive shaded renders of tooled bindings, fitted pixel by pixel from their normal maps to their shaded renders: the steepest 5 % of the surface is now shaded at 45° (was 35°), the flat surface sits at grey 0.60, and faces turned to the light get their own gain (new Highlights slider, 1.6) - with it the tone curve fits those renders as closely as any tone curve can. The all-round light now defaults to 30 %: every edge still reads, with a stronger sense of depth. A new 'Archive match (north-east light)' look reproduces the archive renders' single light.
+    - Quick export below the preview: one click (or Ctrl+E) renders the whole height map at full resolution with exactly the settings on screen - GeoTIFF + PNG in the export folder, georeferenced like the height map and added to the map right over it. Export view does the same for just the part in view. The map, image and export buttons now line up in one grid with the light presets.
+    2.9.0
+    - Clean relief: a new default render mode for clean, smooth, detailed grey relief lit from every side, developed on real photometric-stereo depth maps (Poisson and Frankot-Chellappa integrations of a tooled leather binding). The broad drift that integration bends into a depth map - ramps and bowls far taller than the relief on them - is removed; the finest relief can be lifted; noise and grain are smoothed away by an edge-preserving guided filter that keeps the walls of tooling and incisions sharp; and a key light is blended with a ring of 4-32 lights round the compass, so every edge reads whichever way it runs while the key light keeps the sense of depth.
+    - The steepness is set from the surface itself (the steepest 5 % shaded at a chosen angle), so any height units, integrations and pixel sizes shade alike; a soft tone curve keeps the flat surface a matte grey that never reaches black or white. The preview at every zoom matches the saved render (1:1 within a quarter of a grey level; a 62 MP scan renders in under a minute).
+    - Six Clean relief looks (all-round, extra smooth, crisp detail, north-east light, lit from every side, raking all-round) lead the side panel; the sun dial shows the ring of lights.
+    2.8.0
+    - Shade Lab: a new tab where frequency bands, QGIS-formula hillshades and PCA work together. Choose which of the five bands feed it (and how strongly), smooth them (Gaussian, or edge-preserving with a guided filter that keeps incision walls sharp), and shade them with gdaldem's standard, combined, multidirectional or Igor shading - or light them from 4-32 directions round the compass and take the mean or the principal components (PCA of hillshades, Devereux, Amable & Crow 2008): PCA 1 and 2, their direction-free strength, PCA 3 for fine residual detail, or PCA 1-2-3 as colour, optionally across every band (multi-scale).
+    - An Output selector above the preview picks the lab output; the side panel shows every output as a clickable thumbnail; Render full resolution saves exactly the output on screen, with the same auto contrast as the preview. With every band at 1 the lab hillshade is exactly QGIS's.
+    - The Frequency tab sends its ticked bands to the lab in one click; five Shade Lab looks.
+    2.7.0
+    - QGIS hillshade (gdaldem): a new default render mode that reproduces QGIS's Raster > Analysis > Hillshade exactly - standard, combined, multidirectional and Igor shading, Horn or Zevenbergen-Thorne, Z factor, scale (with Auto for degrees) and compute edges - verified pixel for pixel against GDAL for every option. It shades the raw heights, exactly as gdaldem does.
+    - Shown the way QGIS shows it: QGIS styles a new hillshade layer with 'stretch to min/max' between the minimum and maximum of ~250 000 sampled pixels, while the plugin used to show every render 1:1. The preview now does what QGIS does (or, optionally, a punchier 2-98 % cumulative cut, or gdaldem's raw grey levels). The saved GeoTIFF holds gdaldem's exact grey levels (nodata 0, no overviews - like gdaldem's own file, so QGIS styles it identically). The equivalent gdaldem command is shown under the controls.
+    - The key light now starts at QGIS's 45° altitude.
+    - QGIS looks (hillshade, multidirectional, combined, Igor) lead the Shades strip.
+    2.6.0
+    - Archive-matched shaded render: the GIS hill shading was fitted pixel by pixel to 45 published photometric-stereo recordings (their depth maps, normal maps and grey shaded renders of the same objects). They are lit by one light from 45° (north-east - the opposite side to the usual 315°) at about 60°, a face turned full to the light is only about 0.76 grey and shadows never reach black. Two new looks reproduce this, with and without increased contrast.
+    - Match reference: pick a grey render of the same area (for example the shaded render a scanner delivers with its depth map) and the light, exaggeration, ambient and brightness are fitted to it pixel by pixel.
+    - GIS hill shading gains Exaggeration (with Auto: the typical contrast of scanner shaded renders) and Brightness (the Daylight shader's surface colour).
+    - Smooth heights: an optional low-pass before shading that removes the terracing of 8-bit height maps and photometric-stereo noise.
+    2.5.0
+    - GIS hill shading: hill shading the way GIS software such as Global Mapper renders a depth map (the Daylight shader with hill shading) - one or several lights spaced evenly from the azimuth combined by weighted average, average, maximum or minimum, ambient lighting, a shadow-darkness cap, highlight from direct light and slope-enhanced relief (Kent Brown, Utah Geological Survey). Six looks, including a classic shaded render, an increased-contrast version for drypoint, and the darkest of four lights for incisions.
+    - Specular enhancement (RTI-style): only the glossy highlight on exaggerated normals, as in RTI viewers - with an overhead light every incision reads as a dark line. Two looks.
+    - The Shades strip starts with the new GIS and specular looks; the sun dial shows every GIS light.
+    2.4.0
+    - Frequency band shading: give each spatial-frequency band its own shade (hillshade, GDAL multi-directional, texture, curvature or slope) with its own strength and light height, auto-levelled so fine bands read as clearly as broad ones, then combined - a five-band generalisation of Patterson's resolution bumping. Presets (balanced, soft form + crisp detail, drypoint lines, inscription, form only, texture only), previews of the combination and of each band's shade, and a new 'Frequency band shading' render mode with three looks.
+    - Side panel beside the preview: a permanent strip of clickable thumbnails of exactly what is in view - shade types on the Render tab, each band on the Frequency tab, each light on the Light Stack tab - and a Settings tab. The settings list no longer covers the image; the mouse hint fades after a few seconds.
+    - Exact, fast frequency transforms: edges are mirrored exactly as far as any filter reaches while transform sizes stay fast, so tiled and whole renders match at the image borders.
+    2.3.0
+    - Tools for drypoint, engraving and inscriptions: Exaggerated multi-scale shading (Rusinkiewicz et al. 2006), Detail boost for fine relief, Line & edge enhancement (curvature in the spirit of radiance scaling; slope darkening), and an Archaeological blend (VAT) that follows the Relief Visualization Toolbox 'VAT - Archaeological' recipe with positive openness.
+    - Six new looks: Studio Drypoint & incision, Multi-shade Inscription reading, Exaggerated Fine detail and Drypoint lines, VAT and VAT low relief.
+    - Look gallery: every look rendered side by side on your own surface; click one to use it.
+    - View menu: see any ingredient of the render on its own (lighting, cast shadows, texture, occlusion, curvature, slope).
+    - Compare 'Before last change'; a pop-up names each adjustment as you make it; double-click a slider to reset it; reset button on every section.
+    - Faster feel: a half-resolution draft of the view appears first while you adjust, then sharpens.
+    - 375-check control audit in headless QGIS: every control in every mode changes the preview or reaches its job.
+    2.2.0
+    - Studio relief render (renamed and improved): soft cast shadows with adjustable softness and reach, soft-light wrap, clarity (local contrast), retuned presets and a new Soft museum light preset.
+    - New Multi-shade mode: several lights with their own azimuth, altitude, weight and colour; aspect-adaptive (identical to GDAL's multidirectional hillshade), weighted-average and brightest-light combining; rig presets including a raking ring for inscriptions and an RGB orientation shade; the sun dial rotates the whole rig.
+    - The preview now says what it is showing and can list every setting in effect over the image; Copy settings; Save view also writes a settings file.
+    - Controls that cannot change anything with the current settings are greyed out; built-in looks start from defaults so no stale values linger.
+    - Every control audited in headless QGIS: each one visibly changes the preview or reaches the job it belongs to.
+    2.1.0
+    - Zoom-and-pan preview up to 1:1 full resolution and beyond, background rendering, compare split view, readout, scale bar, map sync, save view, render-this-view, saved looks, Light Stack light preview, memory warning, shortcuts.
+    2.0.0
+    - Complete overhaul: live preview with a draggable sun dial, one height-map input, five focused tabs, profiles and per-project settings.
+    - New studio relief render, Brown (2014) texture shading, true sky-view factor, real hemispherical harmonics, background tasks, seamless tiling, GDAL-only I/O, exact-tone display.
+    - Fixes: reset-to-defaults crash, literal "\n" in messages, stale frequency-split cache, near-white Reinhard tone mapping.
+    1.6.0
+    - Aggregation fix for QGIS multi-input processing algorithms; new defaults.
