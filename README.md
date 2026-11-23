@@ -32,8 +32,8 @@ archives and GIS layers.
 <table>
   <tr>
     <td colspan="2" align="center">
-      <img src="docs/images/inspect.webp" alt="A blind-tooled binding: the photograph relit beside its 3D relief" width="860"><br>
-      <sub>Inspect: a tooled binding relit, beside its 3D relief</sub>
+      <img src="docs/images/inspect.webp" alt="A binding relit beside its 3D relief, with a section measured across its centre panel" width="860"><br>
+      <sub>Inspect: a binding relit, beside its 3D relief and a measured section</sub>
     </td>
   </tr>
   <tr>
