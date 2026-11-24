@@ -29,11 +29,6 @@ Helio solves the surface, lets you relight it, read it in 3D and measure it,
 and publishes it as pictures, publication sheets, meshes, web viewers,
 archives and GIS layers.
 
-<p align="center">
-  <img src="docs/images/from_light_to_print.webp" alt="Eight photographs of a binding, each lit from a different side, arranged in a ring around the normal map Helio makes from them, then a 3D print of the binding" width="860"><br>
-  <sub>Eight photographs, no chrome ball, one 3D print</sub>
-</p>
-
 <table>
   <tr>
     <td colspan="2" align="center">
@@ -57,7 +52,7 @@ archives and GIS layers.
 
 | Workspace | What you can do |
 |---|---|
-| **Capture** | Photographs in any order. The lights come from one or two chrome balls, a light file, a rig profile, or a dome you place them on by hand. Hand-held flash and near lamps are evened out. |
+| **Capture** | Photographs in any order. The lights come from one or two chrome balls, a light file, a rig profile or a dome you place them on by hand; with none of these, Helio estimates them from the photographs. Hand-held flash and near lamps are evened out. |
 | **Process** | 8 normal solvers (least squares to specular-robust, sparse-outlier and near-field) and 10 depth methods. Quick looks in seconds, with a score to choose between them. |
 | **Inspect** | 36 views, all relit live: relit, raking, curvature, openness, MSRM, specular, decomposition, quality. The 3D relief, a high-detail 3D window, light sweeps and turntable videos. |
 | **Measure** | Scale, distances, sections and height profiles, ISO 4287 roughness, areas and volumes, ISO 25178 statistics, micro-features and tool marks. |
@@ -65,6 +60,18 @@ archives and GIS layers.
 
 Sessions are saved as `.helio` files. No GPU or deep-learning runtime is
 needed; 16 GB of memory is enough for most captures.
+
+## From photographs to a print
+
+A chrome ball gives the most accurate lights, but it is not essential. Here a
+binding was photographed eight times with the lamp moved round it and no ball
+in the frame; Helio estimated the lights, solved the normal map, and the
+relief it made was printed in plastic.
+
+<p align="center">
+  <img src="docs/images/from_light_to_print.webp" alt="Eight photographs of a binding, each lit from a different side, arranged in a ring around the normal map Helio makes from them, then a 3D print of the binding" width="860"><br>
+  <sub>Eight photographs, no chrome ball, one 3D print</sub>
+</p>
 
 ## Getting Helio
 
