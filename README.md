@@ -30,8 +30,8 @@ and publishes it as pictures, publication sheets, meshes, web viewers,
 archives and GIS layers.
 
 <p align="center">
-  <img src="docs/images/from_light_to_print.webp" alt="Eight photographs of a binding, each lit from a different side, become a normal map in Helio and then a 3D print" width="860"><br>
-  <sub>No chrome ball needed: from the shoot to a model ready to print in about ten minutes</sub>
+  <img src="docs/images/from_light_to_print.webp" alt="Eight photographs of a binding, each lit from a different side, arranged in a ring around the normal map Helio makes from them, then a 3D print of the binding" width="860"><br>
+  <sub>Eight photographs, no chrome ball, one 3D print</sub>
 </p>
 
 <table>
