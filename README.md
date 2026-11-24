@@ -29,6 +29,11 @@ Helio solves the surface, lets you relight it, read it in 3D and measure it,
 and publishes it as pictures, publication sheets, meshes, web viewers,
 archives and GIS layers.
 
+<p align="center">
+  <img src="docs/images/from_light_to_print.webp" alt="Eight photographs of a binding, each lit from a different side, become a normal map in Helio and then a 3D print" width="860"><br>
+  <sub>No chrome ball needed: from the shoot to a model ready to print in about ten minutes</sub>
+</p>
+
 <table>
   <tr>
     <td colspan="2" align="center">
@@ -65,9 +70,10 @@ needed; 16 GB of memory is enough for most captures.
 
 ### The ready-made Mac app
 
-When a disk image is published under
-[Releases](https://github.com/sjm208/HELIO-RTI/releases), download it, open it
-and double-click **Install Helio**. Apple silicon, macOS 13 or later. The app
+Download
+[**Helio_4.0.dmg**](https://github.com/sjm208/HELIO-RTI/releases/latest/download/Helio_4.0.dmg)
+(about 400 MB, from [Releases](https://github.com/sjm208/HELIO-RTI/releases)),
+open it and double-click **Install Helio**. Apple silicon, macOS 13 or later. The app
 is not code-signed: if macOS says it "is damaged", run **Install Helio** again.
 
 ### Run it from this folder (macOS or Windows)
