@@ -79,7 +79,7 @@ relief it made was printed in plastic.
 
 Download
 [**Helio_4.0.dmg**](https://github.com/sjm208/HELIO-RTI/releases/latest/download/Helio_4.0.dmg)
-(about 400 MB, from [Releases](https://github.com/sjm208/HELIO-RTI/releases)),
+(about 210 MB, from [Releases](https://github.com/sjm208/HELIO-RTI/releases)),
 open it and double-click **Install Helio**. Apple silicon, macOS 13 or later. The app
 is not code-signed: if macOS says it "is damaged", run **Install Helio** again.
 
