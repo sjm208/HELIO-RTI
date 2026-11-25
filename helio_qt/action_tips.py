@@ -31,7 +31,6 @@ TIPS: dict[str, str] = {
     "export.qgis": "Send the height map and views to QGIS (the Helio Relief plugin) as georeferenced "
                    "layers.",
     "export.usdz": "A USDZ model for AR Quick Look on iPhone and iPad, checked against Apple's AR rules.",
-    "export.view": "The current view at the photographs' full resolution, as a TIFF.",
     "file.export_now": "Run the exports ticked in Publish, into the export folder.",
     "file.reveal": "Show the last export's folder in the Finder.",
     "file.facsimile": "Files for a physical reproduction: 3D printing, elevated printing, CNC, plates "
@@ -187,13 +186,12 @@ TIPS: dict[str, str] = {
     "view.sweep": "Turn the light slowly round the object, again and again.",
     "view.sweep_gif": "Save the light turning round the object as a GIF or MP4.",
     "view.histogram": "The picture's histogram: brightness and clipping.",
-    "view.snapshot": "Save the current view at full resolution, as a TIFF.",
+    "view.snapshot": "Save a picture of the view: the image at full resolution, the 3D relief "
+                     "up to 8K, or both as the centre shows them.  S in the image.",
     "view.export_loupe": "Save the loupe's region at the photographs' full resolution.",
     "view.mode:image": "The relit picture in the centre.",
     "view.mode:3d": "The 3D relief in the centre: turn it, light it, section it.",
     "view.mode:both": "The picture and the 3D relief side by side.",
-    "view.relief_picture": "Save the 3D view as a PNG.",
-    "view.centre_picture": "Save what the centre shows (picture, 3D, or both) as a 4K PNG.",
     "view.relief_turntable": "Record the 3D relief turning, as a video.",
     "view.relief_flyover": "Record a flight over the 3D relief, as a video.",
     "view.relief_sweep": "Record the light turning over the 3D relief, as a video.",

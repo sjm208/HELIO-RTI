@@ -16,6 +16,12 @@ SOLVER_BLURBS = {
     "Uncalibrated PCA": "No light directions needed. Rough shape when calibration is impossible.",
     "Sparse-Outlier LS (RPCA)": "Sets aside the few readings a matte surface could not give (a highlight on gold, a cast shadow), however bright, and solves from the rest. Gold tooling, metal, glossy media: the best of Helio's solvers on the DiLiGenT benchmark. Slower.",
 }
+# Offered after the others, under "More solvers": on the DiLiGenT benchmark
+# none beat Sparse-Outlier LS (RPCA) on shiny objects (docs/BENCHMARK_DILIGENT.md),
+# and Mid-Tone Weighted was worse than plain least squares on the metal one.
+# Still chosen by name in sessions and by the metal-aware solve.
+MORE_SOLVERS = ("Mid-Tone Weighted LS", "IRLS (Metallic/Specular)", "Iterative Specular Separation")
+MAIN_SOLVERS = tuple(n for n in SOLVER_BLURBS if n not in MORE_SOLVERS)
 # The solvers the metal-aware solve can use where the surface shines.
 METAL_SOLVERS = ("Sparse-Outlier LS (RPCA)", "IRLS (Metallic/Specular)",
                  "Mid-Tone Weighted LS")

@@ -342,8 +342,18 @@ def main():
     app.processEvents()
     w.go_workspace("Process")
     pw.refresh()
-    check("no flat areas yet: Process says so, the option off",
-          "No flat areas" in pw.flat_area_note.text() and not pw.chk["even_flat"].isEnabled())
+    from types import SimpleNamespace as NS
+    from helio_qt.process_ws import strength_key
+    old = lambda **k: NS(**{**dict(even_flat=False, flat_areas="", even_flash=False, flash_ref="",
+                                   semi_calibrated=False), **k})
+    check("Lamp strengths shows what the solve uses, for sessions with several boxes ticked",
+          [strength_key(old(even_flat=True, flat_areas="1,1,9,9", even_flash=True, flash_ref="1,1,5,5")),
+           strength_key(old(even_flat=True, even_flash=True, flash_ref="1,1,5,5")),
+           strength_key(old(even_flash=True, semi_calibrated=True)),
+           strength_key(old(semi_calibrated=True)), strength_key(old())]
+          == ["flat", "grey", "grey", "photos", "off"])
+    check("no flat areas yet: Process says so, Lamp strengths not on them",
+          "No flat areas" in pw.flat_area_note.text() and pw.strength.current() != "flat")
     for k_, bx in enumerate((fbox_l, fbox_r)):
         pw.btn_flat_area.click()
         app.processEvents()
@@ -468,7 +478,9 @@ def main():
           tilt(w.project.result.normals_full, flat_obj) < 1.0)
     pw.btn_flat_clear.click()
     app.processEvents()
-    check("Clear forgets them", not w.project.settings.flat_areas and not w.project.settings.even_flat)
+    pw.refresh()
+    check("Clear forgets the boxes, and Lamp strengths stays on Flat areas for new ones",
+          not w.project.settings.flat_areas and pw.strength.current() == "flat")
 
     print("\nWithout a card")
     blank = tempfile.mkdtemp(prefix="helio_flash_none_")
@@ -492,7 +504,7 @@ def main():
     check("no card: Process suggests placing one, and the option stays off",
           "No grey card" in pw.flash_note.text()
           and "place a flat, matte grey card" in pw.flash_note.toolTip()
-          and not pw.chk["even_flash"].isEnabled(), pw.flash_note.text())
+          and pw.strength.current() != "grey", pw.flash_note.text())
     w.close()
     app.processEvents()
     print("\n" + "=" * 60)

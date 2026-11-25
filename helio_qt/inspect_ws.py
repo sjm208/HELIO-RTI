@@ -490,7 +490,7 @@ class InspectWorkspace:
                                      "view at full resolution.  G · S")
         self.light_save_menu = QMenu(self.btn_light_save)
         for text, act in (("Light sweep, GIF or MP4…", "view.sweep_gif"),
-                          ("This view at full resolution (TIFF)…", "view.snapshot"),
+                          ("Picture of this view, full resolution…", "view.snapshot"),
                           ("The loupe's region at full resolution…", "view.export_loupe"),
                           ("3D light sweep video…", "view.relief_sweep")):
             self.light_save_menu.addAction(text, lambda a=act: self.reg.trigger(a))
@@ -763,8 +763,9 @@ class InspectWorkspace:
                 ("Send to QGIS", "export.qgis",
                  "The heights, colour and normals in QGIS, with the Helio "
                  "Relief plugin.  ⇧⌘G"),
-                ("This view", "export.view",
-                 "The view on screen at full resolution, as a TIFF."))):
+                ("This view", "view.snapshot",
+                 "Save View: the image at full resolution as a TIFF, the 3D relief, or "
+                 "both as the centre shows them.  S"))):
             b = button(text, "", tip)
             b.clicked.connect(lambda _c=False, i=sid: self.reg.trigger(i))
             qrow.addWidget(b, i // 2, i % 2)
@@ -955,12 +956,11 @@ class InspectWorkspace:
         rb = QGridLayout()
         rb.setHorizontalSpacing(6)
         rb.setVerticalSpacing(6)
-        b_pic = button("Picture…", "", "This 3D view as a picture: as on screen, or drawn "
-                       "afresh at 4K, 6K or 8K for print.  ⌘⌥S")
-        b_pic.clicked.connect(lambda: self.win.save_relief_picture())
-        b_centre = button("Centre, 4K…", "", "The whole centre (the image and the relief side by "
-                          "side, or whichever is shown) as one 4K PNG.  ⌘⌥⇧S")
-        b_centre.clicked.connect(lambda: self.win.save_centre_picture())
+        b_pic = button("Picture…", "", "Save View: this 3D view as a picture (as on screen, or "
+                       "drawn afresh at 4K, 6K or 8K for print), or the image and the relief "
+                       "side by side as the centre shows them.  ⌘⌥S")
+        b_pic.clicked.connect(lambda: self.win.save_view(
+            "centre" if self.centre_mode == "both" else "3d"))
         b_turn = button("Turntable…", "", "Record the relief turning once round, as MP4 or GIF.  T")
         b_turn.clicked.connect(lambda: self.win.record_relief_turntable())
         b_fly = button("Flyover…", "", "One smooth loop round the relief, dipping low where the "
@@ -973,7 +973,6 @@ class InspectWorkspace:
         rb.addWidget(b_turn, 0, 1)
         rb.addWidget(b_fly, 1, 0)
         rb.addWidget(b_light, 1, 1)
-        rb.addWidget(b_centre, 2, 0, 1, 2)          # its own row: three in one were clipped
         self.sec_relief.add_layout(rb)
         self.relief_window_note = label("", "caption", wrap=True)
         self.sec_relief.add(self.relief_window_note)

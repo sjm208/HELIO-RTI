@@ -941,25 +941,42 @@ class MainWindow(QMainWindow):
         del layer
         self.flash(f"Saved {os.path.basename(path)} ({x2 - x1} × {y2 - y1} px).")
 
+    def save_view(self, what: str = "", relief=None):
+        """Save View (S, ⌘⌥S): the image at full resolution, the 3D relief, or
+        both as the centre shows them, chosen in one window (SaveViewDialog).
+        *what* picks the choice it opens on; by default, what the centre shows.
+        *relief* is the high-detail window's 3D view, when it asks."""
+        from helio_qt.record_dialog import SaveViewDialog
+        ins = self.workspaces["Inspect"]
+        mode = getattr(ins, "centre_mode", "image")
+        if not what:
+            what = "3d" if relief is not None else {"3d": "3d", "both": "centre"}.get(mode, "image")
+        r = ins.relief
+        can_3d = relief is not None or r is None or bool(getattr(r, "gl_ok", False))
+        self.save_view_dialog = SaveViewDialog(self, relief, what, centre_both=mode == "both"
+                                               and relief is None, can_3d=can_3d)
+        self.save_view_dialog.show()
+        return self.save_view_dialog
+
     def snapshot(self):
-        """S: the current view at full resolution, as a TIFF (export_highres_tiff)."""
+        """The image at full resolution: Save View, opened on The image."""
+        return self.save_view("image")
+
+    def write_view_tiff(self, path: str) -> str:
+        """The current view at full resolution into *path*, an 8-bit TIFF with
+        the capture details embedded (publish.current_view)."""
         from helio_qt import publish
-        from helio_qt.publish import file_stem
-        start = os.path.join(str(self.prefs.value("export_folder", "")) or self.default_export_dir(),
-                             f"{file_stem(self.project.name)}_{file_stem(self.view or 'view')[:24]}.tif")
-        path, _ = QFileDialog.getSaveFileName(self, "Save the current view", start, "TIFF (*.tif)")
-        if not path:
-            return
         # It is written as an 8-bit TIFF, so it is named one: a name typed or
         # remembered as .jpg would have held TIFF data under the wrong name.
         root, ext = os.path.splitext(path)
         if ext.lower() not in (".tif", ".tiff"):
             path = root + ".tif"
-        out = publish.current_view(self.publish_source(), os.path.dirname(path))
-        if out != path:
+        out = publish.current_view(self.publish_source(), os.path.dirname(os.path.abspath(path)))
+        if os.path.abspath(out) != os.path.abspath(path):
             os.replace(out, path)
         publish.embed_meta(path, self.project.capture_meta, self.view or "")
         self.flash(f"Saved {os.path.basename(path)}.")
+        return path
 
     def flash(self, text: str, seconds: float = 6.0):
         """A short message in the bottom bar's detail line."""
@@ -1217,7 +1234,8 @@ class MainWindow(QMainWindow):
         self.run_background(lambda: check_reference(imgs, box, min_level=FLAT_MIN_LEVEL), done)
 
     def clear_flat_areas(self):
-        self.project.update_settings(even_flat=False, flat_areas="")
+        # The boxes only: Lamp strengths stays on Flat areas, ready for new ones.
+        self.project.update_settings(flat_areas="")
         self.flash("Flat areas cleared.")
         self.refresh()
 
@@ -3201,15 +3219,11 @@ class MainWindow(QMainWindow):
         return r
 
     def save_relief_picture(self, relief=None):
-        """The 3D relief (or *relief*, the high-detail window's): Save the 3D
-        view asks the size (as on screen, or up to 8K), background and file."""
-        r = relief or self._relief_ready()
-        if r is None:
+        """The 3D relief (or *relief*, the high-detail window's) as a picture:
+        Save View, opened on The 3D relief."""
+        if relief is None and self._relief_ready() is None:
             return None
-        from helio_qt.record_dialog import PictureDialog
-        self.picture_dialog = PictureDialog(self, r)
-        self.picture_dialog.show()
-        return self.picture_dialog
+        return self.save_view("3d", relief)
 
     def write_relief_picture(self, r, path: str, long_side: int = 0, background: str = "") -> str:
         """*r* drawn into *path* (PNG, TIFF or JPEG by its name): as on screen,
@@ -3244,27 +3258,34 @@ class MainWindow(QMainWindow):
         return path
 
     def save_centre_picture(self, path: str = "", long_side: int = 3840):
-        """The centre (image, 3D relief, or both side by side) as one 4K PNG."""
+        """The centre (image, 3D relief, or both side by side) as one picture:
+        into *path* when given, else Save View, opened on what the centre shows."""
+        if not path:
+            return self.save_view()
+        return self.write_centre_picture(path, long_side)
+
+    def write_centre_picture(self, path: str, long_side: int = 3840) -> str:
+        """The centre as it is drawn now into *path* (PNG, TIFF or JPEG by its
+        name), *long_side* px on its longer side (0: as on screen)."""
         ins = self.workspaces["Inspect"]
         if ins.centre_mode != "image" and self._relief_ready() is None:
             return ""
-        if not path:
-            from helio_qt.publish import file_stem
-            start = os.path.join(str(self.prefs.value("export_folder", "")) or self.default_export_dir(),
-                                 f"{file_stem(self.project.name)}_{ins.centre_mode}_4k.png")
-            path, _ = QFileDialog.getSaveFileName(self, "Save the centre view", start, "PNG (*.png)")
-            if not path:
-                return ""
+        if not long_side:
+            c = ins.split if hasattr(ins, "split") else ins
+            long_side = int(round(max(c.width(), c.height()) * c.devicePixelRatioF()))
         try:
             img = ins.centre_picture(long_side)
         except Exception as e:
-            QMessageBox.warning(self, "Save the centre view", f"It could not be drawn: {e}")
+            QMessageBox.warning(self, "Save View", f"It could not be drawn: {e}")
             return ""
         import cv2
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-        if not cv2.imwrite(path, cv2.cvtColor(img, cv2.COLOR_RGB2BGR)):
-            QMessageBox.warning(self, "Save the centre view", f"Could not write {path}.")
+        extra = [cv2.IMWRITE_JPEG_QUALITY, 95] if path.lower().endswith((".jpg", ".jpeg")) else []
+        if not cv2.imwrite(path, cv2.cvtColor(img, cv2.COLOR_RGB2BGR), extra):
+            QMessageBox.warning(self, "Save View", f"Could not write {path}.")
             return ""
+        from helio_qt.publish import embed_meta
+        embed_meta(path, self.project.capture_meta, "centre")
         self.flash(f"Saved {os.path.basename(path)}, {img.shape[1]} × {img.shape[0]}.")
         return path
 

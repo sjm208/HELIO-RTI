@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (QCheckBox, QComboBox, QFileDialog, QHBoxLayout, Q
                                QListWidget, QListWidgetItem, QMessageBox, QProgressBar,
                                QVBoxLayout, QWidget)
 
-from helio_qt.controls import ParamRow, Section, VScroll
+from helio_qt.controls import ParamRow, Section, Segmented, VScroll
 from helio_qt.widgets import button, label, panel, pixmap_from_array, rule
 
 
@@ -29,6 +29,18 @@ from helio_qt.widgets import button, label, panel, pixmap_from_array, rule
 # The working sizes offered (ProcessingSettings.work_scale): full size, a fraction, or automatic (0).
 WORK_SIZES = ((1.0, "Full size"), (0.75, "75%"), (0.5, "50%"), (0.35, "35%"), (0.25, "25%"),
               (0.0, "Automatic: fit this machine's memory"))
+
+
+def strength_key(s) -> str:
+    """Which Lamp strengths choice *s* amounts to, in the order the solve
+    takes them (pipeline): flat areas, the grey patch, the photographs."""
+    if s.even_flat and (s.flat_areas or not (s.even_flash and s.flash_ref)):
+        return "flat"
+    if s.even_flash:
+        return "grey"
+    if s.semi_calibrated:
+        return "photos"
+    return "off"
 
 class _Sig(QObject):
     done = Signal(str, object, str)
@@ -229,7 +241,12 @@ class ProcessWorkspace:
         sec = Section("Solve", "p_solve", store)
         sec.add(label("Normal solver", "secondary"))
         self.solver = QComboBox()
-        self.solver.addItems(list(SOLVER_BLURBS))
+        from helio.domain.registry import MAIN_SOLVERS, MORE_SOLVERS
+        self.solver.addItems(list(MAIN_SOLVERS))
+        self.solver.insertSeparator(self.solver.count())
+        self.solver.addItem("More solvers")             # a heading: it cannot be chosen
+        self.solver.model().item(self.solver.count() - 1).setEnabled(False)
+        self.solver.addItems(list(MORE_SOLVERS))
         self.solver.setAccessibleName("Normal solver")
         self.solver.setToolTip("How each pixel's normal is found from its brightness under each "
                                "light. The note below says what each method is for.")
@@ -312,17 +329,31 @@ class ProcessWorkspace:
         row.addWidget(self.btn_ambient_clear)
         row.addStretch(1)
         sec.add_layout(row)
-        # Flat areas (CAL-004): the flash's fall-off across the frame.
-        sec.add(label("1  Flat areas · best for a hand-held flash", "secondary", wrap=True))
-        c = QCheckBox("Even out the flash's fall-off")
-        c.setToolTip("A flash held to one side lights that side of the object more, and the "
-                     "solve reads it as the surface tilting. Mark areas you know are flat (the "
-                     "board round a book, the grey card, a margin), on both sides of the object "
-                     "if you can: each frame's light is measured across them and evened out. "
-                     "Does the grey patch's work too.")
-        c.toggled.connect(lambda v: self.project.update_settings(even_flat=bool(v)))
-        sec.add(c)
-        self.chk["even_flat"] = c
+        # Lamp strengths: one choice (it was three checkboxes, each "not needed
+        # when" another was on).  The solve takes them in this order anyway
+        # (pipeline: flat areas, else the grey patch, else semi-calibrated).
+        sec.add(label("Lamp strengths · when the lamps or flashes are not equal", "secondary",
+                      wrap=True))
+        self.strength = Segmented(
+            [("off", "Off"), ("flat", "Flat areas"), ("grey", "Grey patch"),
+             ("photos", "From the photographs")],
+            {"off": "The lamps are taken as equally strong.",
+             "flat": "Best for a hand-held flash. A flash held to one side lights that side "
+                     "more, and the solve reads it as the surface tilting. Mark areas you know "
+                     "are flat (the board round a book, the grey card, a margin), on both sides "
+                     "of the object if you can: each frame's strength and fall-off are measured "
+                     "across them and evened out.",
+             "grey": "Each flash's strength, from a flat matte grey card in the shot. A flash "
+                     "carried round by hand is stronger in some frames than others (on six "
+                     "bindings, up to 2.6 times). Found automatically when you open the "
+                     "photographs, or marked by hand.",
+             "photos": "Nothing to mark (semi-calibrated). Every lamp's strength is found from "
+                       "the photographs themselves, with the light directions held: LEDs on a "
+                       "dome differ by 10-30%. A marked reference measures it more surely."},
+            columns=2)
+        self.strength.chosen.connect(self._choose_strength)
+        sec.add(self.strength)
+        # Flat areas (CAL-004): marked boxes, shown when Flat areas is chosen.
         self.flat_area_note = label("", "caption", wrap=True)
         sec.add(self.flat_area_note)
         row = QHBoxLayout()
@@ -336,19 +367,11 @@ class ProcessWorkspace:
         self.btn_flat_clear.clicked.connect(lambda: self.win.clear_flat_areas())
         row.addWidget(self.btn_flat_clear)
         row.addStretch(1)
-        sec.add_layout(row)
-        # Hand-held flash (CAL-003): each frame's flash strength from a grey card.
-        sec.add(label("2  Grey patch · each flash's strength", "secondary", wrap=True))
-        c = QCheckBox("Even out the flash strength")
-        c.setToolTip("A flash carried round by hand is stronger in some frames than others (on "
-                     "six bindings, up to 2.6 times), and the solve reads the brighter frames as "
-                     "the surface turning towards them. A flat, matte grey card in the shot "
-                     "measures each flash; every frame is then scaled to the same strength. "
-                     "Found automatically when you open the photographs. Not needed when flat "
-                     "areas are on.")
-        c.toggled.connect(lambda v: self.project.update_settings(even_flash=bool(v)))
-        sec.add(c)
-        self.chk["even_flash"] = c
+        self.flat_row = QWidget()
+        self.flat_row.setLayout(row)
+        row.setContentsMargins(0, 0, 0, 0)
+        sec.add(self.flat_row)
+        # Grey patch (CAL-003): shown when Grey patch is chosen.
         self.flash_note = label("", "caption", wrap=True)
         sec.add(self.flash_note)
         self.btn_grey = button("Mark the grey patch…", "quiet",
@@ -356,30 +379,18 @@ class ProcessWorkspace:
                                "grey card lying beside the object, lit by every flash.")
         self.btn_grey.clicked.connect(lambda: self.win.mark_grey_reference())
         sec.add(self.btn_grey)
-        sec.add(label("3  Flat object · nothing to mark", "secondary", wrap=True))
-        c = QCheckBox("Take out uneven light")
+        self.semi_note = label("", "caption", wrap=True)
+        sec.add(self.semi_note)
+        sec.add(label("Flat objects only · it flattens real shape too", "secondary", wrap=True))
+        c = QCheckBox("Flatten broad light gradients")
         c.setToolTip("For flat or nearly flat objects (documents, coins, printing plates): "
                      "removes the broad brightness gradient that lamps at different distances "
                      "leave (multi-scale Retinex): a flat copper plate went from 11° of false "
                      "tilt to 2.4°. The colour picture is left as photographed. Leave it off "
-                     "for curved or deep objects: it would flatten their real shape too.")
+                     "for curved or deep objects: it flattens their real shape as well.")
         c.toggled.connect(lambda v: self.project.update_settings(flatten_illumination=bool(v)))
         sec.add(c)
         self.chk["flatten_illumination"] = c
-        # Semi-calibrated: the lamps' strengths from the photographs themselves.
-        sec.add(label("4  Unequal lamps · nothing to mark", "secondary", wrap=True))
-        c = QCheckBox("Find each lamp's strength (semi-calibrated)")
-        c.setToolTip("The light directions are known but the lamps are rarely equal: LEDs on a "
-                     "dome differ by 10-30%, and the solve reads a brighter lamp as the surface "
-                     "turning towards it. Finds every lamp's strength from the photographs "
-                     "themselves, with the directions held, and evens the frames to them. "
-                     "Nothing to mark. Not needed when flat areas or the grey patch are on, "
-                     "which measure the same thing on a known reference.")
-        c.toggled.connect(lambda v: self.project.update_settings(semi_calibrated=bool(v)))
-        sec.add(c)
-        self.chk["semi_calibrated"] = c
-        self.semi_note = label("", "caption", wrap=True)
-        sec.add(self.semi_note)
         self.btn_compare = button("Compare corrections…", "",
                                   "Solves small with each correction on its own, in seconds, "
                                   "and shows how flat the grey patch and flat areas come out.")
@@ -419,6 +430,25 @@ class ProcessWorkspace:
         row.addWidget(self.btn_lf_off)
         row.addStretch(1)
         sec.add_layout(row)
+        sec.add(label("Older: a flat reference", "secondary", wrap=True))
+        sec.add(label("The same board photographs, used the older way: their tilt is subtracted "
+                      "after the solve. The light field above evens the frames before it, which "
+                      "is more exact; use one, not both.", "caption", wrap=True))
+        self.btn_flat = button("Load flat reference images…", "quiet", "Photographs of a blank, even "
+                               "card under the same lights, one per light, in the same order.")
+        self.btn_flat.clicked.connect(lambda: self.reg.trigger("process.flat"))
+        sec.add(self.btn_flat)
+        self.flat_note = label("No flat reference loaded", "caption", wrap=True)
+        sec.add(self.flat_note)
+        self.chk["flat_correction"] = QCheckBox("Apply the correction")
+        self.chk["flat_correction"].setToolTip("Subtract the flat reference's tilt from the solved "
+                                               "directions (after the solve).")
+        self.chk["flat_correction"].toggled.connect(
+            lambda v: self.project.update_settings(flat_correction=bool(v)))
+        sec.add(self.chk["flat_correction"])
+        self.rows["flat_corr_strength"] = sec.add(ParamRow(_ctl(
+            "flat_corr_strength", "Correction strength", 0.0, 1.0, 1.0, 0.01,
+            "1 removes all of the measured distortion.")))
         sec.add(label("Lens", "secondary", wrap=True))
         self.lens_note = label("", "caption", wrap=True)
         sec.add(self.lens_note)
@@ -484,7 +514,6 @@ class ProcessWorkspace:
         # Where the dome is centred: the lights were measured on the ball, so
         # a ball at the side of the frame measured them from there.
         self.nf_from_label = sec.add(label("Lamps measured from", "secondary"))
-        from helio_qt.controls import Segmented
         self.nf_from = Segmented([("ball", "The ball"), ("centre", "The centre")], {
             "ball": "The dome is centred where the chrome ball is: right for a ball at the side "
                     "of the frame, and the same as the centre for a ball in the middle.",
@@ -592,29 +621,6 @@ class ProcessWorkspace:
                                  "the solved normals.")
         self.btn_refine.clicked.connect(lambda: self.reg.trigger("process.refine"))
         sec.add(self.btn_refine)
-        vl.addWidget(sec)
-
-        sec = Section("Flat-field correction (older)", "p_flat", store, open_=False)
-        sec.add(label("Photographs of a blank flat surface under the same lights show the rig's "
-                      "own distortion; this subtracts its tilt from the solved directions. The "
-                      "white-board light field (Precision measurement) uses the same photographs "
-                      "and evens the frames before the solve, which is more exact: use one, not "
-                      "both.", "caption", wrap=True))
-        self.btn_flat = button("Load flat reference images…", "", "Photographs of a blank, even "
-                               "card under the same lights, one per light, in the same order.")
-        self.btn_flat.clicked.connect(lambda: self.reg.trigger("process.flat"))
-        sec.add(self.btn_flat)
-        self.flat_note = label("No flat reference loaded", "secondary", wrap=True)
-        sec.add(self.flat_note)
-        self.chk["flat_correction"] = QCheckBox("Apply the correction")
-        self.chk["flat_correction"].setToolTip("Subtract the flat reference's tilt from the solved "
-                                               "directions (after the solve).")
-        self.chk["flat_correction"].toggled.connect(
-            lambda v: self.project.update_settings(flat_correction=bool(v)))
-        sec.add(self.chk["flat_correction"])
-        self.rows["flat_corr_strength"] = sec.add(ParamRow(_ctl(
-            "flat_corr_strength", "Correction strength", 0.0, 1.0, 1.0, 0.01,
-            "1 removes all of the measured distortion.")))
         vl.addWidget(sec)
 
         sec = Section("Region", "p_region", store, open_=False)
@@ -852,6 +858,11 @@ class ProcessWorkspace:
                   "ok" if text.startswith(("Evened", "Grey reference")) else "info")
         return text, text, status
 
+    def _choose_strength(self, key: str):
+        """Lamp strengths: exactly one of the three, or none."""
+        self.project.update_settings(even_flat=key == "flat", even_flash=key == "grey",
+                                     semi_calibrated=key == "photos")
+
     def _semi_text(self, s) -> str:
         """What the semi-calibrated correction found, or why it is not used."""
         if not s.semi_calibrated:
@@ -1060,11 +1071,15 @@ class ProcessWorkspace:
             from helio_qt.widgets import restyle
             self.flash_note.setProperty("status", st)
             restyle(self.flash_note)
-        self.chk["even_flash"].setEnabled(bool(s.flash_ref))
         self.ambient_note.setText(self._ambient_text(s))
         self._refresh_precision(p, s)
         self.btn_ambient_clear.setVisible(bool(s.ambient_frame))
-        self.chk["even_flat"].setEnabled(bool(s.flat_areas))
+        key = strength_key(s)
+        self.strength.set_current(key)
+        for w_ in (self.flat_area_note, self.flat_row):
+            w_.setVisible(key == "flat")
+        for w_ in (self.flash_note, self.btn_grey):
+            w_.setVisible(key == "grey")
         self.btn_flat_clear.setVisible(bool(s.flat_areas))
         ft, fst = self._flat_status(s)
         self.flat_area_note.setText(ft)
@@ -1092,7 +1107,7 @@ class ProcessWorkspace:
         self.metal_solver.setCurrentText(s.metal_solver)
         self.metal_solver.blockSignals(False)
         self.semi_note.setText(self._semi_text(s))
-        self.semi_note.setVisible(bool(self.semi_note.text()))
+        self.semi_note.setVisible(key == "photos" and bool(self.semi_note.text()))
         self.metal_note.setText(self._metal_text(s))
         self.metal_note.setVisible(bool(self.metal_note.text()))
         for k in ("pre_clahe_clip", "pre_clahe_tile"):

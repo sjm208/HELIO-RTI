@@ -319,32 +319,68 @@ BACKGROUNDS = {"screen": ("As on screen", ""), "white": ("White", "#FFFFFF"),
                "black": ("Black", "#000000"), "grey": ("Grey", "#808080")}
 
 
-class PictureDialog(QDialog):
-    """Save the 3D view as a picture: as on screen, or drawn afresh at up to
-    8K on the long side (the view's own shape), on a chosen background, as
-    PNG, TIFF or JPEG."""
+# What Save View can save, and what each is (key: button, tip).
+SAVE_WHATS = {
+    "image": ("The image", "The view at the photographs' full resolution, as a TIFF with the "
+              "capture details in it."),
+    "3d": ("The 3D relief", "The 3D view as on screen, or drawn afresh at up to 8K, on a chosen "
+           "background."),
+    "centre": ("Both, as in the centre", "The image and the 3D relief side by side, as the "
+               "centre shows them, as one picture."),
+}
 
-    def __init__(self, win, relief):
+
+class SaveViewDialog(QDialog):
+    """Save View: one command for every still picture of what is on screen
+    (it was four: Save Current View, This View at Full Resolution, Save the 3D
+    View as a Picture, Save the Centre View as a Picture).  *what* is the
+    image at full resolution (TIFF), the 3D relief (as on screen or up to 8K,
+    on a chosen background), or the centre's image and relief side by side.
+    *relief* is the 3D view to draw (the high-detail window's, or the
+    centre's, found when it is saved if not given); with *can_3d* False
+    (no OpenGL here) only the image can be saved."""
+
+    def __init__(self, win, relief=None, what: str = "image", centre_both: bool = False,
+                 can_3d: bool = True):
         super().__init__(win)
         self.win, self.relief = win, relief
-        self.setWindowTitle("Save the 3D view")
-        self.setMinimumWidth(480)
+        self.setWindowTitle("Save View")
+        self.setMinimumWidth(500)
         lay = QVBoxLayout(self)
         lay.setContentsMargins(24, 20, 24, 16)
         lay.setSpacing(10)
-        lay.addWidget(label("Save the 3D view", "title"))
-        lay.addWidget(label("Size (the long side)", "secondary"))
+        lay.addWidget(label("Save View", "title"))
+        self.what = Segmented([(k, t) for k, (t, _d) in SAVE_WHATS.items()],
+                              {k: d for k, (_t, d) in SAVE_WHATS.items()})
+        why = {"3d": "" if can_3d else "The 3D view is not available here: it needs OpenGL 4.1.",
+               "centre": "" if can_3d and centre_both else
+               "Show the image and the 3D relief side by side first (View › Centre, ⌥3)."}
+        for k, reason in why.items():
+            if reason:
+                self.what.buttons[k].setEnabled(False)
+                self.what.buttons[k].setToolTip(f"{SAVE_WHATS[k][1]}\n\n{reason}")
+        if not self.what.buttons.get(what) or not self.what.buttons[what].isEnabled():
+            what = "image"
+        self.what.set_current(what)
+        self.what.chosen.connect(lambda _k: self._show())
+        lay.addWidget(self.what)
+        self.note = label("", "caption", wrap=True)
+        lay.addWidget(self.note)
+        self.size_label = label("Size (the long side)", "secondary")
+        lay.addWidget(self.size_label)
         self.size = Segmented([(k, t) for k, (t, _n) in PICTURE_SIZES.items()],
                               {k: (f"Drawn afresh, {n:,} px on the long side" if n else
                                    "The view as it is on screen") for k, (_t, n) in
                                PICTURE_SIZES.items()})
         self.size.set_current("4k")
         lay.addWidget(self.size)
-        lay.addWidget(label("Background", "secondary"))
+        self.bg_label = label("Background", "secondary")
+        lay.addWidget(self.bg_label)
         self.bg = Segmented([(k, t) for k, (t, _c) in BACKGROUNDS.items()])
         self.bg.set_current("screen")
         lay.addWidget(self.bg)
-        lay.addWidget(label("File", "secondary"))
+        self.fmt_label = label("File", "secondary")
+        lay.addWidget(self.fmt_label)
         self.fmt = Segmented([("png", "PNG"), ("tif", "TIFF"), ("jpg", "JPEG")],
                              {"png": "Lossless, for the web and slides.",
                               "tif": "Lossless, for print and archives.",
@@ -360,28 +396,61 @@ class PictureDialog(QDialog):
         brow.addWidget(close)
         brow.addWidget(self.btn_save)
         lay.addLayout(brow)
+        self._show()
+
+    def _show(self):
+        """Only the rows that apply to what is being saved."""
+        what = self.what.current() or "image"
+        image = what == "image"
+        for wd in (self.size_label, self.size, self.fmt_label, self.fmt):
+            wd.setVisible(not image)
+        for wd in (self.bg_label, self.bg):
+            wd.setVisible(what == "3d")
+        note = ""
+        if image:
+            res = getattr(self.win.project, "result", None)
+            size = f", {res.w:,} × {res.h:,} px" if res is not None and getattr(res, "w", 0) else ""
+            note = f"At the photographs' full resolution{size}, as a TIFF with the capture details in it."
+        elif what == "centre":
+            note = "The image and the 3D relief side by side, as the centre shows them."
+        self.note.setText(note)
+        self.note.setVisible(bool(note))
+        self.adjustSize()
 
     def settings(self) -> dict:
-        return dict(long_side=PICTURE_SIZES[self.size.current() or "4k"][1],
-                    background=BACKGROUNDS[self.bg.current() or "screen"][1],
-                    fmt=self.fmt.current() or "png")
+        what = self.what.current() or "image"
+        if what == "image":
+            return dict(what=what, fmt="tif")
+        st = dict(what=what, long_side=PICTURE_SIZES[self.size.current() or "4k"][1],
+                  fmt=self.fmt.current() or "png")
+        if what == "3d":
+            st["background"] = BACKGROUNDS[self.bg.current() or "screen"][1]
+        return st
 
     def save(self, path: str = "") -> str:
         from helio_qt.publish import file_stem
         st = self.settings()
-        ext = st.pop("fmt")
+        what, ext = st.pop("what"), st.pop("fmt")
         if not path:
-            tag = self.size.current() or "4k"
+            tag = "" if what == "image" else (self.size.current() or "4k")
+            view = file_stem(self.win.view or "view")[:24] if what == "image" else \
+                ("3d" if what == "3d" else "centre")
             start = os.path.join(str(self.win.prefs.value("export_folder", ""))
                                  or self.win.default_export_dir(),
-                                 f"{file_stem(self.win.project.name)}_3d"
-                                 f"{'' if tag == 'screen' else '_' + tag}.{ext}")
+                                 f"{file_stem(self.win.project.name)}_{view}"
+                                 f"{'' if tag in ('', 'screen') else '_' + tag}.{ext}")
             filters = {"png": "PNG (*.png)", "tif": "TIFF (*.tif *.tiff)", "jpg": "JPEG (*.jpg *.jpeg)"}
-            path, _ = QFileDialog.getSaveFileName(self, "Save the 3D view", start, filters[ext])
+            path, _ = QFileDialog.getSaveFileName(self, "Save View", start, filters[ext])
             if not path:
                 return ""
         root, e = os.path.splitext(path)
-        if e.lower() not in (".png", ".tif", ".tiff", ".jpg", ".jpeg"):
+        allowed = (".tif", ".tiff") if what == "image" else (".png", ".tif", ".tiff", ".jpg", ".jpeg")
+        if e.lower() not in allowed:
             path = f"{root}.{ext}"
         self.accept()
-        return self.win.write_relief_picture(self.relief, path, **st)
+        if what == "image":
+            return self.win.write_view_tiff(path)
+        if what == "3d":
+            r = self.relief or self.win._relief_ready()
+            return self.win.write_relief_picture(r, path, **st) if r is not None else ""
+        return self.win.write_centre_picture(path, st["long_side"])

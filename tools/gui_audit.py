@@ -123,7 +123,7 @@ def main():
 
     # ── inspect quick exports ───────────────────────────────────────
     for sid in ("export.rti_web", "export.rti_combined", "export.hf_viewer", "export.qgis", "export.usdz",
-                "export.view", "file.export"):
+                "view.snapshot", "file.export"):
         if sid not in w.registry.actions:
             problem("inspect", f"quick export {sid} is not a command")
 

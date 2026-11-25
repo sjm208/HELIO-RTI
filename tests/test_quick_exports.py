@@ -247,7 +247,7 @@ def main():
     w.wait_background()
     check("USDZ from its sheet: written and checked", ud.result and os.path.isfile(
         os.path.join(tmp, "sheet.usdz")) and "Apple's AR rules" in ud.status.text(), ud.status.text())
-    for sid in ("export.rti_web", "export.qgis", "export.usdz", "export.view"):
+    for sid in ("export.rti_web", "export.qgis", "export.usdz", "view.snapshot"):
         check(f"{sid} has a menu command and a handler", sid in w.registry.actions
               and callable(getattr(w, w.registry.specs[sid].handler, None)))
     from helio_qt import publish as P

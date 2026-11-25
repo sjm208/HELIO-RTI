@@ -224,16 +224,14 @@ def main():
     check("the next step is Show in Finder, and the status says Exported",
           w.primary.text() == "Show in Finder" and w.status_text.text() == "Exported")
     snap = tempfile.mkdtemp(prefix="helio_snap_")
-    hw.QFileDialog.getSaveFileName = staticmethod(
-        lambda *a_, **k: (os.path.join(snap, "view.jpg"), ""))       # a name remembered as .jpg
-    w.snapshot()
+    w.save_view("image").save(os.path.join(snap, "view.jpg"))        # a name remembered as .jpg
     got_s = sorted(os.listdir(snap))
     im_s = cv2.imread(os.path.join(snap, "view.tif"), cv2.IMREAD_UNCHANGED) if got_s else None
     check("This view is saved as a .tif whatever the name typed, 8-bit",
           got_s == ["view.tif"] and im_s is not None and im_s.dtype == np.uint8, got_s)
     old_view = w.view
     w.set_view("Depth map")
-    w.snapshot()
+    w.save_view("image").save(os.path.join(snap, "view.tif"))
     im_d = cv2.imread(os.path.join(snap, "view.tif"), cv2.IMREAD_UNCHANGED)
     check("…the Depth map too: 8-bit grey as on screen, not 32-bit",
           im_d is not None and im_d.dtype == np.uint8 and im_d.ndim == 2, None if im_d is None else im_d.dtype)

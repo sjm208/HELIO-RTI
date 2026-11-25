@@ -69,8 +69,6 @@ def _specs() -> list[Spec]:
           handler="send_to_qgis", keywords="gis dem geotiff helio relief plugin"),
         S("export.usdz", "USDZ for AR…", "File/Quick Export", "Ctrl+Shift+U", needs="solved",
           handler="export_usdz", keywords="openusd usd usda usdc ar quick look iphone ipad 3d"),
-        S("export.view", "This View at Full Resolution…", "File/Quick Export", needs="solved",
-          handler="snapshot", keywords="tiff current view save picture"),
         S("file.export_now", "Export Selected Formats…", "File", needs="solved",
           handler="publish_run", keywords="publish queue save"),
         S("file.reveal", "Show Last Export in Finder", "File", needs="exported",
@@ -141,8 +139,6 @@ def _specs() -> list[Spec]:
           handler="recalc_depth", keywords="integrate depth again smoothing"),
         S("process.reprocess", "Process a Region…", "Process", needs="solved",
           handler="process_region", keywords="crop area reprocess selected"),
-        S("process.flat", "Load Flat Reference (Older Correction)…", "Process", needs="images",
-          handler="load_flat", keywords="flat field correction blank white board"),
         S("process.measurement", "Set Up for Measurement", "Process/Precision Measurement",
           needs="images", handler="set_up_for_measurement",
           keywords="precision measure metrology preset accurate rpca free boundary linear decode"),
@@ -152,6 +148,8 @@ def _specs() -> list[Spec]:
           "fixed rig calibration measurement"),
         S("process.light_field_clear", "White-Board Light Field Off", "Process/Precision Measurement",
           needs="images", handler="clear_light_field", keywords="precision flat field remove"),
+        S("process.flat", "Load Flat Reference (Older Correction)…", "Process/Precision Measurement",
+          needs="images", handler="load_flat", keywords="flat field correction blank white board"),
         S("process.lens", "Calibrate Lens from a Chessboard…", "Process/Precision Measurement",
           needs="images", handler="calibrate_lens",
           keywords="precision lens distortion chessboard checkerboard camera calibration barrel "
@@ -161,9 +159,14 @@ def _specs() -> list[Spec]:
         S("process.print_chessboard", "Print a Calibration Chessboard…", "Process/Precision Measurement",
           handler="print_chessboard", keywords="print pdf chessboard checkerboard lens a4 a3"),
     ]
-    for name in NORMAL_SOLVERS:
-        out.append(S(f"process.solver:{name}", name, "Process/Normal Solver", handler="set_solver",
-                     checkable=True, group="solver", keywords="normal solver engine"))
+    from helio.domain.registry import MORE_SOLVERS
+    # The main solvers first; the rest in a More Solvers submenu (as in Process).
+    for name in sorted(NORMAL_SOLVERS, key=lambda n: n in MORE_SOLVERS):
+        more = name in MORE_SOLVERS
+        out.append(S(f"process.solver:{name}", name,
+                     "Process/Normal Solver" + ("/More Solvers" if more else ""), handler="set_solver",
+                     checkable=True, group="solver", keywords="normal solver engine"
+                     + (" more" if more else "")))
     for name in DEPTH_METHODS:
         out.append(S(f"process.depth:{name}", name, "Process/Depth Method", handler="set_depth",
                      checkable=True, group="depth", keywords="depth integration method"))
@@ -303,8 +306,9 @@ def _specs() -> list[Spec]:
           keywords="gif mp4 video animation light sweep moving rti"),
         S("view.histogram", "Histogram", "View", "H", needs="solved", handler="show_histogram",
           image_focus=True, keywords="levels clipping statistics"),
-        S("view.snapshot", "Save Current View…", "View", "S", needs="solved", handler="snapshot",
-          image_focus=True, keywords="snapshot tiff export current visual"),
+        S("view.snapshot", "Save View…", "View", "Ctrl+Alt+S", needs="solved", handler="save_view",
+          keywords="snapshot tiff export current visual picture full resolution 3d relief "
+          "screenshot png jpeg 4k 8k centre side by side high resolution"),
         S("view.export_loupe", "Save Loupe Region…", "View", needs="solved", handler="export_loupe",
           keywords="magnifier region full resolution crop"),
         S("view.mode:image", "Image", "View/Centre", "Alt+1", handler="set_centre_mode",
@@ -315,11 +319,6 @@ def _specs() -> list[Spec]:
         S("view.mode:both", "Image and 3D Side by Side", "View/Centre", "Alt+3", needs="solved",
           handler="set_centre_mode", group="centre", checkable=True,
           keywords="3d side by side compare split centre"),
-        S("view.relief_picture", "Save the 3D View as a Picture…", "View/Centre", "Ctrl+Alt+S",
-          needs="solved", handler="save_relief_picture", keywords="3d screenshot png relief picture"),
-        S("view.centre_picture", "Save the Centre View as a Picture (4K)…", "View/Centre",
-          "Ctrl+Alt+Shift+S", needs="solved", handler="save_centre_picture",
-          keywords="screenshot 4k side by side image 3d relief picture png centre high resolution"),
         S("view.relief_turntable", "Record a 3D Turntable…", "View/Centre", needs="solved",
           handler="record_relief_turntable", keywords="3d turntable spin video mp4 gif relief"),
         S("view.relief_flyover", "Record a 3D Flyover…", "View/Centre", needs="solved",
@@ -400,7 +399,7 @@ SPECS: list[Spec] = _specs()
 # The classic app's single keys, kept as second shortcuts while the image has
 # focus, so hands that learned HELIO 2 still work (key, command).
 ALIASES = (("R", "process.run"), ("E", "view.next"), ("Shift+E", "view.prev"),
-           ("F", "view.fit"), ("?", "help.shortcuts"))
+           ("F", "view.fit"), ("?", "help.shortcuts"), ("S", "view.snapshot"))
 
 
 def location(spec: Spec) -> str:
@@ -514,15 +513,15 @@ class Registry:
         for s in SPECS:
             top, *rest = s.menu.split("/")
             m = menus[top]
-            if rest:
-                key = s.menu
+            for i in range(len(rest)):                 # submenus, nested as deep as the path goes
+                key = "/".join([top, *rest[:i + 1]])
                 if key not in subs:
-                    if s.sep_before:
+                    if s.sep_before and i == 0:
                         m.addSeparator()
-                    subs[key] = m.addMenu(rest[0])
+                    subs[key] = m.addMenu(rest[i])
                     subs[key].setToolTipsVisible(True)
                 m = subs[key]
-            elif s.sep_before:
+            if not rest and s.sep_before:
                 m.addSeparator()
             m.addAction(self.actions[s.id])
         return menus

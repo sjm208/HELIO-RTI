@@ -137,7 +137,11 @@ def main():
     print("\nThe full-resolution view, with the capture details in it")
     tif = os.path.join(out, "view.tif")
     hw.QFileDialog.getSaveFileName = staticmethod(lambda *a, **k: (tif, ""))
-    w.snapshot()
+    sv = w.snapshot()
+    check("S opens Save View on The image, with no size or background to choose",
+          sv.what.current() == "image" and not sv.size.isVisibleTo(sv)
+          and not sv.bg.isVisibleTo(sv) and "full resolution" in sv.note.text(), sv.what.current())
+    sv.save()
     with Image.open(tif) as im:
         desc, artist, size = im.tag_v2.get(270, ""), im.tag_v2.get(315, ""), im.size
     check("This view at full resolution is the solve's full size",
@@ -146,7 +150,7 @@ def main():
           "Roman coin, bronze" in desc and artist == "A. Tester", (desc, artist))
 
     print("\nRecord video and the 3D picture")
-    from helio_qt.record_dialog import PictureDialog, RecordDialog
+    from helio_qt.record_dialog import RecordDialog, SaveViewDialog
     from helio.application.viewer3d import VIDEO_SIZES
     r = ins._ensure_relief()
     rd = RecordDialog(w, r, "light")
@@ -167,14 +171,31 @@ def main():
     fw = [video_pose("light", i, 8, light_el=30)[3][0] for i in range(8)]
     bw = [video_pose("light", i, 8, light_el=30, reverse=True)[3][0] for i in range(8)]
     check("…anticlockwise goes the other way round", fw[1] == 45.0 and bw[1] == 315.0, (fw, bw))
-    pd = PictureDialog(w, r)
+    pd = SaveViewDialog(w, r, "3d")
     pd.size.set_current("8k")
     pd.bg.set_current("white")
     pd.fmt.set_current("tif")
     st = pd.settings()
-    check("the 3D picture: up to 8K, on white, as TIFF",
-          st == dict(long_side=7680, background="#FFFFFF", fmt="tif"), st)
+    check("Save View, the 3D relief: up to 8K, on white, as TIFF",
+          st == dict(what="3d", long_side=7680, background="#FFFFFF", fmt="tif"), st)
+    check("…Both, as in the centre, waits for the side-by-side centre",
+          not pd.what.buttons["centre"].isEnabled())
+    pd.what.set_current("centre")
+    pd._show()
+    check("…and offers no background for it", not pd.bg.isVisibleTo(pd) and pd.size.isVisibleTo(pd))
     pd.close()
+    pd = SaveViewDialog(w, r, "centre", centre_both=True)
+    pd.size.set_current("hd")
+    pd.fmt.set_current("jpg")
+    check("…side by side: HD as JPEG", pd.settings() == dict(what="centre", long_side=1920, fmt="jpg"),
+          pd.settings())
+    pd.close()
+    texts = [a.text() for sid, a in w.registry.actions.items() if "Save" in a.text() and "View" in a.text()
+             and "Picture" in a.text()]
+    gone = [s for s in ("export.view", "view.relief_picture", "view.centre_picture")
+            if s in w.registry.actions]
+    check("one Save View… in the menus: the three other picture commands are gone",
+          not gone and w.registry.actions["view.snapshot"].text() == "Save View…", (gone, texts))
     ins.set_centre_mode("3d")
     app.processEvents()
     asked = []

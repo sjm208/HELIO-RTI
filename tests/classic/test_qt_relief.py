@@ -231,7 +231,7 @@ def main():
     check("the 3D view takes focus", app.focusWidget() is r, type(app.focusWidget()).__name__)
     NM = Qt.KeyboardModifier.NoModifier
     for key, mods, label, test in (
-            (Qt.Key.Key_S, NM, "S starts a section, not Save Current View", lambda: r.tool == "section"),
+            (Qt.Key.Key_S, NM, "S starts a section, not Save View", lambda: r.tool == "section"),
             (Qt.Key.Key_C, NM, "C toggles contours, not the 2D Clay view", lambda: r.contours),
             (Qt.Key.Key_M, NM, "M measures", lambda: r.tool == "measure"),
             (Qt.Key.Key_Escape, NM, "Esc leaves the tool", lambda: r.tool == ""),
@@ -251,7 +251,7 @@ def main():
     fired.clear()
     QTest.keyClick(r, Qt.Key.Key_S, Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.AltModifier)
     app.processEvents()
-    check("⌘⌥S saves the 3D view as a picture", fired == ["view.relief_picture"], fired)
+    check("⌘⌥S opens Save View from the 3D view", fired == ["view.snapshot"], fired)
     from PySide6.QtCore import QEvent
     from PySide6.QtGui import QKeyEvent
 
@@ -690,7 +690,7 @@ def main():
           sum(t.startswith("IN THE 3D VIEW") for t in texts) == len(R.KEYS)
           and any("Section through the relief" in t for t in texts))
     check("…and the picture key with its menu command",
-          any("Save the 3D View as a Picture" in t for t in texts))
+          any("Save View" in t for t in texts))
     sheet.filter.setText("contours")
     shown = [sheet.list.item(i).text() for i in range(sheet.list.count())
              if not sheet.list.item(i).isHidden()]

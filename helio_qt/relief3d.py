@@ -705,7 +705,7 @@ class ReliefView(QOpenGLWidget):
     # Keys the view keeps while it has focus.  Accepting the ShortcutOverride
     # is how a widget claims a key in Qt, and on macOS it is also what stops
     # a menu's key equivalent firing: without it, C or S here could reach the
-    # 2D view's Clay or Save Current View through the View menu.
+    # 2D view's Clay or Save View through the View menu.
     OWN_KEYS = frozenset(int(k) for k in (
         Qt.Key.Key_F, Qt.Key.Key_Home, Qt.Key.Key_7, Qt.Key.Key_1, Qt.Key.Key_3, Qt.Key.Key_5,
         Qt.Key.Key_C, Qt.Key.Key_M, Qt.Key.Key_S, Qt.Key.Key_T, Qt.Key.Key_L, Qt.Key.Key_Space,

@@ -304,7 +304,7 @@ def main():
                 "file.facsimile",
                 "share.sketchfab", "share.qr", "share.embed", "share.manifest",
                 "share.verify", "process.cancel", "ai.open:identify", "ai.open:report",
-                "ai.open:caption", "view.relief_picture", "view.relief_flyover",
+                "ai.open:caption", "view.snapshot", "view.relief_flyover",
                 "view3d.open:inverted", "view3d.open:heatmap", "view.fit",
                 "view.appearance:light", "view.appearance:dark", "view.appearance:system",
                 "view.scheme:graphite", "view.scheme:nightdome", "help.help", "help.search",
