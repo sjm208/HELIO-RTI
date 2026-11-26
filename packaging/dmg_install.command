@@ -3,7 +3,7 @@
 #
 # Why this exists
 # ---------------
-# HELIO is not notarised by Apple. macOS quarantines anything downloaded
+# Helio is not notarised by Apple. macOS quarantines anything downloaded
 # from the internet, and refuses to open a quarantined app that Apple has not
 # signed off — usually with "Helio is damaged and can't be opened. You
 # should move it to the Trash."

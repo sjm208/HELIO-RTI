@@ -80,8 +80,21 @@ relief it made was printed in plastic.
 Download
 [**Helio_4.0.dmg**](https://github.com/sjm208/HELIO-RTI/releases/latest/download/Helio_4.0.dmg)
 (about 210 MB, from [Releases](https://github.com/sjm208/HELIO-RTI/releases)),
-open it and double-click **Install Helio**. Apple silicon, macOS 13 or later. The app
-is not code-signed: if macOS says it "is damaged", run **Install Helio** again.
+open it and double-click **Install Helio**. Apple silicon, macOS 13 or later.
+
+The app is not notarised by Apple, so the first time macOS may stop the installer.
+On macOS 15 or later click **Done**, then **System Settings › Privacy & Security ›
+Open Anyway**; on macOS 13 or 14, right-click it and choose **Open**. If macOS says
+Helio "is damaged", it is not: run **Install Helio**, which clears the download's
+quarantine flag.
+
+**Or skip the warnings altogether:** paste this into Terminal. It downloads Helio,
+puts it in Applications and opens it; a download made this way is not quarantined,
+so macOS asks nothing. Run it again to update.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/sjm208/HELIO-RTI/main/install_helio.sh | bash
+```
 
 ### Run it from this folder (macOS or Windows)
 

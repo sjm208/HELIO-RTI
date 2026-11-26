@@ -9,6 +9,16 @@
 #
 # Usage: ./build_helio3.sh            (SKIP_APP=1 reuses dist_qt/Helio.app)
 #
+# Notarised, when there is an Apple Developer ID (the one fix for macOS's
+# "damaged" and "Open Anyway" messages; without it the app is signed ad hoc and
+# the disk image's installer clears the quarantine instead):
+#
+#   HELIO_SIGN_ID="Developer ID Application: Name (TEAMID)" \
+#   HELIO_NOTARY_PROFILE=helio ./build_helio3.sh
+#
+# where the profile was stored once with
+#   xcrun notarytool store-credentials helio --apple-id ... --team-id ...
+#
 # The built app runs its own self-test (helio_qt/selftest.py) before any disk
 # image is made: a capture of a known surface solved and exported by the
 # bundle's own interpreter and libraries.  If it fails, there is no DMG.
@@ -108,6 +118,14 @@ if ! "$PYTHON" -c "import json,sys; r=json.load(open('$SELF/selftest.json')); sy
 fi
 echo "  the built app passed its self-test"
 
+SIGN_ID="${HELIO_SIGN_ID:-}"
+if [ -n "$SIGN_ID" ]; then
+    echo "Signing $APP3.app as $SIGN_ID (hardened runtime)..."
+    codesign --force --deep --options runtime --timestamp \
+        --entitlements packaging/helio_entitlements.plist -s "$SIGN_ID" "$APP3_PATH"
+    codesign --verify --deep --strict "$APP3_PATH"
+fi
+
 # ── the disk image ─────────────────────────────────────────────────────
 # As build_dmg.sh: built read-write, laid out through Finder (a background
 # and fixed icon positions), then compressed.  A refused Finder step still
@@ -135,9 +153,11 @@ cp packaging/dmg_install.command "$STAGE/Install Helio.command"
 chmod +x "$STAGE/Install Helio.command"
 cp THIRD_PARTY_NOTICES.md "$STAGE/Third-Party Notices.md" 2>/dev/null || true
 ln -s /Applications "$STAGE/Applications"
-if [ -f packaging/helio3_dmg_background.png ]; then
+BG=packaging/helio3_dmg_background.tiff                 # 1x and 2x (tools/make_dmg_background.py)
+[ -f "$BG" ] || BG=packaging/helio3_dmg_background.png
+if [ -f "$BG" ]; then
     mkdir -p "$STAGE/.background"
-    cp packaging/helio3_dmg_background.png "$STAGE/.background/background.png"
+    cp "$BG" "$STAGE/.background/background.${BG##*.}"
 fi
 
 CONTENT_MB=$(du -sm "$STAGE" | cut -f1)
@@ -165,12 +185,12 @@ tell application "Finder"
         set current view of container window to icon view
         set toolbar visible of container window to false
         set statusbar visible of container window to false
-        set the bounds of container window to {200, 90, 840, 670}
+        set the bounds of container window to {200, 80, 840, 760}
         set opts to the icon view options of container window
         set arrangement of opts to not arranged
         set icon size of opts to 96
         set text size of opts to 12
-        set background picture of opts to file ".background:background.png"
+        set background picture of opts to file ".background:background.${BG##*.}"
         set position of item "$APP3.app" of container window to {$APP_X, 150}
         try
             set position of item "$CLASSIC_STAGED.app" of container window to {250, 150}
@@ -207,4 +227,13 @@ rm -f "$DMG_PATH"
 hdiutil convert "$RW_DMG" -format UDZO -imagekey zlib-level=9 -o "$DMG_PATH" >/dev/null
 rm -f "$RW_DMG"
 rm -rf "$STAGE"
+if [ -n "$SIGN_ID" ]; then
+    codesign --force --timestamp -s "$SIGN_ID" "$DMG_PATH"
+    if [ -n "${HELIO_NOTARY_PROFILE:-}" ]; then
+        echo "Notarising (this waits for Apple, usually a few minutes)..."
+        xcrun notarytool submit "$DMG_PATH" --keychain-profile "$HELIO_NOTARY_PROFILE" --wait
+        xcrun stapler staple "$DMG_PATH"
+        spctl -a -vv -t open --context context:primary-signature "$DMG_PATH"
+    fi
+fi
 echo "DMG created: $DMG_PATH ($(du -sh "$DMG_PATH" | cut -f1))"
