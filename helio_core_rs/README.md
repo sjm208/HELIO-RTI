@@ -1,6 +1,6 @@
 # helio_core_rs
 
-Rust compute kernels for Helio 3, exposed to Python with PyO3 and built with maturin.
+Rust compute kernels for Helio, exposed to Python with PyO3 and built with maturin.
 
 ## Scope
 
@@ -13,7 +13,7 @@ Only the heavy numerical code in `helio/core/` moves here:
 | `parallel.py` | exact percentiles / median (`stats.rs`) | done |
 
 The PySide6 interface (`helio_qt/`), the 3D views, the publication sheet and the
-QGIS integration stay in Python. Helio Classic is not part of this repository.
+QGIS integration stay in Python.
 
 ## FFI rules
 

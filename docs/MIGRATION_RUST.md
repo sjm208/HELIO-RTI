@@ -1,24 +1,11 @@
-# Helio-Rust: what was copied from Helio_3
+# Helio: the Rust kernels and the memory plan
 
-Source: `sjm208/Helio_3` at commit `7047d85`.
+A running record of the work that moved Helio's heaviest arithmetic into Rust
+(`helio_core_rs/`) and gave the solve a memory plan, with what each step
+measured. The newest work is at the end.
 
-Copied: everything Helio 3 uses (`helio/` minus `helio/ui/`, `helio_qt/`, tests,
-docs, vendor assets, build files for the macOS Helio 3 app).
-
-Left out (Helio Classic, out of scope): `Helio_Pro.py`, `main.py`, `setup.py`,
-`build_dmg.sh`, `helio_splash.py`, `helio/ui/`, the Windows build files, the
-Classic manual, Classic-only tests (those importing `Helio_Pro`, `helio.ui`,
-`helio_splash`), `tests/test_golden.py` and `tools_*` that build the Classic app,
-`docs/pyside6-migration/`.
-
-Known follow-ups:
-- `helio/data_manager.py`, `helio_help.py`, `helio/io/provenance.py`,
-  `helio_qt/window.py` and a few `test_qt_*` tests still mention Classic
-  (lazy imports, a "Open Helio Classic" menu action). Untouched on purpose.
-- `build_helio3.sh` expects Classic's `dist/` app; not adapted yet.
-- The golden-image test (`tests/test_golden.py`) is removed: it builds the Classic Tk app. `tools/make_golden.py` is kept for its pure helpers; its `build_app`/`main` still need Classic.
-- `tests/test_headless.py` removed (drives Classic `main.py`).
-- Environment-only failures here: Qt tests need `libEGL`; `test_render_speed`, `test_view_controls` fail the same with and without Rust.
+This repository started from the Helio source of October 2026 with the older
+Tk interface left out; Helio is the PySide6 app alone.
 
 Plan: Step 1 crate scaffold (done), Step 2 Linear Least-Squares kernel (done), Step 3 verification (done): `tests/test_rust_lls.py`, Rust vs NumPy within 1e-5, frozen golden in `tests/fixtures/golden_lls_normals.npz` (`python tests/test_rust_lls.py --update-golden` rewrites it).
 Step 3 verification (done): `tests/test_rust_lls.py`, Rust vs NumPy within 1e-5, frozen golden in `tests/fixtures/golden_lls_normals.npz` (`python tests/test_rust_lls.py --update-golden` rewrites it).
@@ -268,10 +255,9 @@ pass both with the Rust kernels and with `HELIO_NO_RUST=1`. Normals for 4 MP x 8
 NumPy 0.95 s (27x) on that 2-thread runner. The one failure on the way was a test tolerance (float64
 FFT parity, 2-3e-9 of the range on arm64; the output is float32).
 
-Not proved: the PyInstaller `.app` itself (spec change, `build_helio3.sh` hook, self-test step) - the
-workflow does not build the app, and it needs the Classic app present (`dist/`), which this repository
-does not carry. Build on a Mac with `./build_helio3.sh`; its self-test now fails if the kernels were
-built but are not in the bundle.
+Not proved there: the PyInstaller `.app` itself (spec change, `build_helio3.sh` hook, self-test step) -
+the workflow does not build the app. Build on a Mac with `./build_helio3.sh`; its self-test fails if the
+kernels were built but are not in the bundle.
 
 ## Inspect export buttons, colour slider, new defaults
 

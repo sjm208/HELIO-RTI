@@ -198,7 +198,7 @@ class ShortcutsSheet(QDialog):
             note = "  (when the image has focus)" if s.image_focus else ""
             row(shortcut_text(s.shortcut), s.text + note)
         from helio_qt.actions import ALIASES
-        heading("ALSO, AS IN Helio Classic (WHEN THE IMAGE HAS FOCUS)")
+        heading("ALSO, SINGLE KEYS (WHEN THE IMAGE HAS FOCUS)")
         specs = {s.id: s for s in SPECS}
         for key, sid in ALIASES:
             row(shortcut_text(key), specs[sid].text)

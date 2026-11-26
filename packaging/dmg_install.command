@@ -16,9 +16,8 @@
 # quarantine flag does, and that is a Terminal command most people should not
 # be asked to type. So it is in here instead: double-click, and this does it.
 #
-# It installs every app on the disk image beside it: Helio and Helio Classic
-# (HELIO Pro 3 and HELIO Pro (classic) before October 2026, whose copies it
-# offers to move to the Trash).
+# It installs Helio from the disk image beside it, and offers to move a copy
+# under Helio's old name (HELIO Pro 3, before October 2026) to the Trash.
 
 set -u
 
@@ -84,11 +83,11 @@ if [ ${#INSTALLED[@]} -eq 0 ]; then
     exit 1
 fi
 
-# The same apps under their names before October 2026: offered to the Trash
+# The same app under its name before October 2026: offered to the Trash
 # (moved, not deleted), and only once Helio itself is installed.
 case " ${INSTALLED[*]} " in
     *"/Helio.app "*)
-        for OLD in "HELIO Pro 3.app" "HELIO Pro.app"; do
+        for OLD in "HELIO Pro 3.app"; do
             [ -d "/Applications/$OLD" ] || continue
             printf '  %s is the same app under its old name.\n' "${OLD%.app}"
             read -r -p '    Move the old copy to the Trash? [y/N] ' REPLY
@@ -101,7 +100,7 @@ case " ${INSTALLED[*]} " in
         done ;;
 esac
 
-# Open the newest app on the image: Helio when it is there.
+# Open Helio (the image carries only Helio; the loop keeps any other app working).
 OPEN="${INSTALLED[0]}"
 for D in "${INSTALLED[@]}"; do
     case "$D" in *"/Helio.app") OPEN="$D" ;; esac
@@ -110,7 +109,7 @@ printf '  Done. Opening %s…\n\n' "$(basename "${OPEN%.app}")"
 open "$OPEN" 2>/dev/null
 
 if [ "$FAILED" -ne 0 ]; then
-    read -r -p "  One app could not be installed (see above). Press Return to close. " _
+    read -r -p "  Something could not be installed (see above). Press Return to close. " _
     exit 1
 fi
 printf '  You can close this window.\n\n'

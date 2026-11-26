@@ -1,4 +1,4 @@
-"""HELIO Pro 3 checking itself: `HELIO Pro 3 --selftest [folder]`.
+"""Helio checking itself: `Helio --selftest [folder]`.
 
 The tests prove the source tree; this proves a built copy, run with that
 copy's own interpreter and libraries.  No window opens and nothing of the

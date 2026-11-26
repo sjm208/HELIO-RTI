@@ -890,8 +890,7 @@ class InspectWorkspace:
         self.sec_relief.add_layout(crow)
 
         self.sec_shape = Section("Shape", "relief_shape", store, open_=False,
-                                 tip="How the heights are made from the depth: the classic "
-                                     "3D tab's mesh settings.")
+                                 tip="How the heights are made from the depth.")
         self.shape_rows = {}
         for key, text, lo, hi, step, tip in (
                 ("shape_blend", "Detail vs shape", 0.0, 1.0, 0.01, "0 keeps the whole shape "
@@ -913,15 +912,14 @@ class InspectWorkspace:
             r.changed.connect(lambda k, v, final: self._relief_shape(k, v, final))
             self.sec_shape.add(r)
             self.shape_rows[key] = r
-        b_shape = button("Reset the shape", "quiet", "The classic defaults: detail vs shape "
+        b_shape = button("Reset the shape", "quiet", "Back to the defaults: detail vs shape "
                          "0.55, fine detail 0.4, the rest off.")
         b_shape.clicked.connect(self._relief_shape_reset)
         self.sec_shape.add(b_shape)
         self.sec_relief.add(self.sec_shape)
 
         self.sec_tone3d = Section("Display tone", "relief_tone", store, open_=False,
-                                  tip="How the 3D picture is shown, not the surface: as the "
-                                      "classic 3D window's tone settings.")
+                                  tip="How the 3D picture is shown, not the surface.")
         self.tone3d_rows = {}
         for key, text, lo, hi, step, tip in (
                 ("viewer_gamma", "Gamma", 0.3, 3.0, 0.01, "Above 1 lifts the mid-tones."),

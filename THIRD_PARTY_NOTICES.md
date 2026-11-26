@@ -32,9 +32,6 @@ Versions are the ones this build was made against; run
 | rawpy | 0.27.0 | MIT | Python binding for LibRaw — see the note below. |
 | PyInstaller | 6.19.0 | GPL-2.0 with the bootloader exception | Build tool. The exception lets the bootloader it puts in the app ship under any licence. |
 
-Helio Classic (the older Tk interface) also uses customtkinter (CC0-1.0) and
-tkinterdnd2 (MIT); the macOS disk image of Helio does not include them.
-
 ## Qt and PySide6 — LGPL 3
 
 The interface is built with **Qt 6 through PySide6 (Qt for Python)**, used

@@ -1,11 +1,6 @@
 #!/bin/bash
-# Build Helio.app (PyInstaller, Apple silicon), check it, and make the
-# Helio disk image:
-#
-#   Helio.app                dist_qt/, built here from helio_qt.spec
-#   HELIO Pro.app (classic)  dist/, built by ./build_dmg.sh (py2app), when it is
-#                            there; this repository does not carry the classic,
-#                            and the image is then Helio alone
+# Build Helio.app (PyInstaller, Apple silicon) in dist_qt/ from helio_qt.spec,
+# check it, and make the Helio disk image.
 #
 # Usage: ./build_helio3.sh            (SKIP_APP=1 reuses dist_qt/Helio.app)
 #
@@ -28,12 +23,10 @@ cd "$(dirname "$0")"
 
 PYTHON="${PYTHON:-python3}"
 APP3="Helio"
-CLASSIC="HELIO Pro"
 DIST="${DIST:-dist_qt}"
 WORK="${WORK:-build_qt}"
 DMG_NAME="${DMG_NAME:-Helio_4.0}"
 APP3_PATH="$DIST/$APP3.app"
-CLASSIC_PATH="dist/$CLASSIC.app"
 
 if [ "$("$PYTHON" -c 'import platform; print(platform.machine())')" != "arm64" ]; then
     echo "ERROR: this builds the Apple silicon app; $PYTHON is not arm64."
@@ -42,11 +35,6 @@ fi
 if pgrep -f "$APP3_PATH" >/dev/null 2>&1; then
     echo "ERROR: $APP3 is running from $DIST. Quit it first."
     exit 1
-fi
-WITH_CLASSIC=1
-if [ ! -d "$CLASSIC_PATH" ]; then
-    WITH_CLASSIC=0
-    echo "NOTE: $CLASSIC_PATH is not here: the disk image carries Helio alone."
 fi
 
 if [ "${SKIP_APP:-0}" != "1" ]; then
@@ -127,7 +115,7 @@ if [ -n "$SIGN_ID" ]; then
 fi
 
 # ── the disk image ─────────────────────────────────────────────────────
-# As build_dmg.sh: built read-write, laid out through Finder (a background
+# Built read-write, laid out through Finder (a background
 # and fixed icon positions), then compressed.  A refused Finder step still
 # leaves a working, unstyled image.
 echo "Creating DMG..."
@@ -137,17 +125,6 @@ STAGE=$(mktemp -d)
 RW_DMG="$DIST/${DMG_NAME}_rw.dmg"
 
 cp -R "$APP3_PATH" "$STAGE/"
-# The classic, as Helio Classic: its bundle renamed and its menu-bar name
-# with it.  py2app signs only the executable (Info.plist "not bound"), so
-# the change leaves its signature exactly as it was built.
-CLASSIC_STAGED="Helio Classic"
-APP_X=180                                   # Helio alone: it and Applications, centred
-if [ "$WITH_CLASSIC" = "1" ]; then
-    APP_X=110
-    cp -R "$CLASSIC_PATH" "$STAGE/$CLASSIC_STAGED.app"
-    plutil -replace CFBundleName -string "$CLASSIC_STAGED" "$STAGE/$CLASSIC_STAGED.app/Contents/Info.plist"
-    plutil -replace CFBundleDisplayName -string "$CLASSIC_STAGED" "$STAGE/$CLASSIC_STAGED.app/Contents/Info.plist"
-fi
 cp packaging/dmg_readme_v3.txt "$STAGE/Read Me.txt"
 cp packaging/dmg_install.command "$STAGE/Install Helio.command"
 chmod +x "$STAGE/Install Helio.command"
@@ -191,11 +168,8 @@ tell application "Finder"
         set icon size of opts to 96
         set text size of opts to 12
         set background picture of opts to file ".background:background.${BG##*.}"
-        set position of item "$APP3.app" of container window to {$APP_X, 150}
-        try
-            set position of item "$CLASSIC_STAGED.app" of container window to {250, 150}
-        end try
-        set position of item "Applications" of container window to {$(( WITH_CLASSIC == 1 ? 510 : 460 )), 150}
+        set position of item "$APP3.app" of container window to {180, 150}
+        set position of item "Applications" of container window to {460, 150}
         try
             set position of item "Install Helio.command" of container window to {320, 360}
         end try

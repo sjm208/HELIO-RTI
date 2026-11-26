@@ -304,8 +304,8 @@ class UnmixDialog(ToolDialog):
     INTRO = "Splits how each pixel answers the lights into separate channels."
     METHOD = ("PCA (or ICA) on the light stack: one row per pixel, one column per photograph, "
               "decoded to linear light as the solve decodes it. Materials, layers and coatings "
-              "that answer the lights differently separate into different components. Helio Classic "
-              "called this HSH unmixing; no HSH or PTM basis is involved. The maps use "
+              "that answer the lights differently separate into different components. Older versions "
+              "of Helio called this HSH unmixing; no HSH or PTM basis is involved. The maps use "
               "perceptually uniform colours. Save them as PNG or JPEG maps, with 16-bit greyscale "
               "TIFFs for an image editor or 32-bit value TIFFs for analysis; with three or more "
               "components a colour composite (C1-C3 as red, green, blue) is saved too.")
@@ -386,8 +386,8 @@ class MicroDialog(ToolDialog):
     TITLE = "Micro-features"
     INTRO = "Finds pinholes, stylus marks and small pits in the surface."
     METHOD = ("Laplacian-of-Gaussian blobs in the height map. Each feature's depth is how far its "
-              "centre lies below the ring around it (from r to 2r); Helio Classic reported the surface's "
-              "height there, so a pit on a high part of the object counted as shallow. Positions "
+              "centre lies below the ring around it (from r to 2r), so a pit on a high part of the "
+              "object is not counted as shallow. Positions "
               "are in mm once the scale is set, depths in µm once the height scale is set.")
     SAVE = "Export…"
 
@@ -472,8 +472,7 @@ class ToolpathDialog(ToolDialog):
               "the divergence of the slopes given by the normals) more than the threshold × the "
               "strongest groove, thinned to one pixel. Each stroke's length is measured along that "
               "line, its groove depth below the surface around it, its direction from the main "
-              "axis of its points. Helio Classic kept the groove shoulders and the flat background, "
-              "and counted lengths about three times too long.")
+              "axis of its points.")
     SAVE = "Export…"
 
     def build(self):
@@ -686,8 +685,7 @@ class RegisterDialog(QDialog):
     METHOD = ("Click the same features on both images, in the same order (at least 4). Similarity "
               "allows turning, uniform scaling and shifting; Affine adds shear and unequal "
               "scaling; Projective a full perspective change (fitted with RANSAC). The fit's RMS "
-              "is how far, in pixels of B, the points miss after warping. Helio Classic's \"Affine\" was "
-              "the similarity.")
+              "is how far, in pixels of B, the points miss after warping.")
 
     def __init__(self, win):
         from helio.application.research import MODELS
@@ -855,7 +853,7 @@ class FocusDialog(ToolDialog):
               "then light 2's …). Each bracket is aligned (ECC, translation) and fused. "
               "Laplacian-pyramid fusion (Burt & Kolczynski 1993) keeps the strongest detail at "
               "each scale and blends the rest, so there are no seams where the sharpest frame "
-              "changes; Helio Classic took each pixel from one frame. 16-bit photographs stay 16-bit.")
+              "changes, as there are when each pixel is taken from one frame. 16-bit photographs stay 16-bit.")
     RUN = "Choose and stack…"
     SAVE = "Save merged…"
 
@@ -879,7 +877,7 @@ class FocusDialog(ToolDialog):
         self.form.addWidget(self.align)
         self.form.addWidget(label("Fusion", ""))
         self.method = Segmented([("pyramid", "Pyramid"), ("select", "Sharpest pixel")],
-                                {"pyramid": "Seamless (recommended).", "select": "Helio Classic's method."})
+                                {"pyramid": "Seamless (recommended).", "select": "Each pixel from the sharpest frame: quicker, with seams."})
         self.method.set_current("pyramid")
         self.form.addWidget(self.method)
         self.btn_open = None

@@ -1,6 +1,6 @@
 # Helio Architecture Blueprint
 
-**Helio 3.0 (preview 16) and Helio Classic** · updated 24 October 2026
+**Helio 4.0** · updated 26 November 2026
 
 ## Overview
 
@@ -14,29 +14,26 @@ takes photographs of one object, each lit from a different direction, and:
 - publishes it as images, meshes, web viewers, GIS rasters, archives and
   publication sheets.
 
-Two apps share one engine:
+One app over one engine:
 
-| App | Interface | Entry point | Built with |
+| Part | What it is | Entry point | Built with |
 |---|---|---|---|
-| **Helio** (3.0) | PySide6, five workspaces | `helio3.py` (`python3 -m helio_qt`) | PyInstaller, `helio_qt.spec`, `build_helio3.sh` |
-| **Helio Classic** (HELIO Pro 2.6) | CustomTkinter | `main.py` → `Helio_Pro.py` | py2app, `setup.py`, `build_dmg.sh` |
-
-One disk image carries both. Helio Classic stays the home of the Terrain
-(Freq / Engrave) and Forensic tabs, which Helio leaves out. Everything else
-is in both, running the same code.
+| **Helio** | PySide6, five workspaces | `helio3.py` (`python3 -m helio_qt`) | PyInstaller, `helio_qt.spec`, `build_helio3.sh` |
+| **Engine** | `helio/`, no interface code | `helio.application.pipeline` | (plain Python) |
+| **Kernels** | `helio_core_rs/`, Rust (optional) | `helio_core_rs` | maturin, `build_rust.sh` |
 
 ```
-┌──────────────────────────────────────┐   ┌─────────────────────────────────┐
-│  helio_qt/   Helio (PySide6)         │   │  Helio_Pro.py   Helio Classic   │
-│  window · workspaces · actions       │   │  RTIViewerPro (CustomTkinter)   │
-│  capture_ws · process_ws ·           │   │  + helio/ui, helio/render       │
-│  inspect_ws · measure_ws · publish   │   │    (VisPy viewer subprocess)    │
-│  relief3d · relief_window (OpenGL)   │   │                                 │
-└──────────────────┬───────────────────┘   └────────────────┬────────────────┘
-                   │      neither imports the other         │
-                   ▼                                        ▼
+┌──────────────────────────────────────┐
+│  helio_qt/   Helio (PySide6)         │
+│  window · workspaces · actions       │
+│  capture_ws · process_ws ·           │
+│  inspect_ws · measure_ws · publish   │
+│  relief3d · relief_window (OpenGL)   │
+└──────────────────┬───────────────────┘
+                   │
+                   ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│  helio/application/   GUI-free services both apps call                   │
+│  helio/application/   GUI-free services the app calls                    │
 │  pipeline (the solve) · jobs · quick_look · process_tools · render ·     │
 │  viewing · exports + export_* · pub_sheet · plate_doc · research ·       │
 │  annotations · capture_tools · dome_tools · rigs · viewer3d · batch · ai │
@@ -56,10 +53,9 @@ is in both, running the same code.
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**The rule:** a feature lives in `helio/` with no interface code, and each app
-is a thin layer over it. Moving a feature out of the classic app into
-`helio/application/` is checked twice: the classic tests show nothing
-changed, and Helio's tests show the wiring.
+**The rule:** a feature lives in `helio/` with no interface code, and
+`helio_qt/` is a thin layer over it. The engine's tests check what a feature
+computes; the `test_qt_*` tests check that the window reaches it.
 
 ## Data flow
 
@@ -171,7 +167,7 @@ compares several settings at once.
   - Details come from Annotate rectangles, measured lines from Measure, and
     sections from the 3D views.
 - **Publication plate** (`application/plate_doc.py`): the A3 plate.
-- **Classic contact sheet:** every panel on one long sheet.
+- **Contact sheet:** every panel on one long sheet.
 - **GIS:** the DEM package (`export_dem`), terrain GeoTIFFs and
   **Send to QGIS** (`export_qgis`). The QGIS plugin export is the
   **Helio Relief 4.0.0** (QGIS 4), bundled in `helio/vendor/` and built
@@ -182,14 +178,14 @@ compares several settings at once.
 
 - `./build_helio3.sh` builds Helio with PyInstaller. Then:
   - the built app runs its self-test;
-  - the script makes the disk image with Helio and the already-built
-    Helio Classic, plus `Install Helio.command`.
-- **Apple silicon only**, macOS 13 or later. Not code-signed.
+  - the script makes the disk image: Helio, `Install Helio.command`, the
+    Read Me and the notices (notarised when given a Developer ID).
+- **Apple silicon only**, macOS 13 or later. Signed ad hoc, not notarised,
+  unless built with a Developer ID; `install_helio.sh` installs it from
+  Terminal with no warnings. On Windows Helio runs from the source.
 - **Tests:**
   - `test_qt_*.py` cover Helio;
-  - the other `test_*.py` files cover the engine and Helio Classic;
-  - `tests/test_golden.py` compares views with approved pictures.
-  - See [TESTING.md](../TESTING.md).
-- **Planning and status:** the migration's plan, contracts and decisions are in
-  [docs/pyside6-migration/](pyside6-migration/). Start with
-  [migration-status.md](pyside6-migration/migration-status.md).
+  - the other `test_*.py` files cover the engine;
+  - `python3 -m helio_qt.fullcheck` runs the whole program the way a person
+    would and writes a report.
+  - See [TESTING.md](TESTING.md).

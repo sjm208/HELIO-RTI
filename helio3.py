@@ -1,4 +1,4 @@
-"""HELIO Pro 3: the entry point the built app runs (and `python3 helio3.py`).
+"""Helio: the entry point the built app runs (and `python3 helio3.py`).
 
 The same as `python3 -m helio_qt`.  freeze_support() comes first: in the
 built app a child process (the separate 3D window, the publication sheet's
