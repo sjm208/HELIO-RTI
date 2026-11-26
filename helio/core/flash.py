@@ -269,14 +269,20 @@ def parse_boxes(text: str) -> list:
 
 
 def flat_area_planes(stack, boxes, lights, frame_size, offset=(0, 0),
-                     max_samples: int = 200_000) -> dict | None:
+                     max_samples: int = 200_000, model=None) -> dict | None:
     """Each frame's light as a plane over the frame, from areas known flat.
 
     *stack* (n, h, w) as the solve reads it (linear when it is linear);
     *boxes* in the photographs' pixels; *frame_size* (w, h) of the
     photographs and *offset* where *stack* starts in them (a region solve).
-    Returns {'coef' (n, 3): g = c0 + c1·u + c2·v with u, v = x/W - 0.5,
-    y/H - 0.5; 'factor_min' the scale that keeps every corrected value at or
+    Returns {'coef' (n, 3): g = exp(c0 + c1·u + c2·v) with u, v = x/W - 0.5,
+    y/H - 0.5, of what is left once the lamps' own light on a flat surface is
+    divided out: lz for distant lamps, or *model*(xs, ys) -> (n, m), the
+    near-field model's light on a flat surface at those stack pixels, so
+    that the near-field solve and the flat areas share one account of the
+    lamps (a plane in the logarithm: always positive, and a lamp's
+    fall-off multiplies, so a near raking flash that dims sixfold across the
+    frame fits where a straight plane went through zero at the far corner); 'factor_min' the scale that keeps every corrected value at or
     below the original (nothing is brightened, so nothing clips);
     'falloff' the largest change of a frame's light across the frame, as a
     share; 'spread' strongest over weakest frame; 'used'; 'axes' the
@@ -312,7 +318,10 @@ def flat_area_planes(stack, boxes, lights, frame_size, offset=(0, 0),
     good = np.isfinite(lz) & (lz > MIN_LZ) & (ok.mean(axis=1) > 0.5)
     if good.sum() < max(3, math.ceil(0.75 * n)):
         return None
-    q = vals / np.where(lz > MIN_LZ, lz, 1.0)[:, None]
+    if model is not None:
+        q = vals / np.maximum(np.asarray(model(xs, ys), np.float64), 1e-6)
+    else:
+        q = vals / np.where(lz > MIN_LZ, lz, 1.0)[:, None]
     qm = np.where(ok & good[:, None], q, np.nan)
     ref = np.nanmedian(qm, axis=0)                             # each pixel's own albedo
     keep_px = np.isfinite(ref) & (ref > 0)
@@ -321,7 +330,6 @@ def flat_area_planes(stack, boxes, lights, frame_size, offset=(0, 0),
     axes = [True, float(np.std(u[keep_px])) > 0.04, float(np.std(v[keep_px])) > 0.04]
     A_full = np.stack([np.ones_like(u), u, v], axis=1)[:, axes]
     coef = np.zeros((n, 3))
-    coef[:, 0] = 1.0
     for i in range(n):
         if not good[i]:
             continue
@@ -329,7 +337,7 @@ def flat_area_planes(stack, boxes, lights, frame_size, offset=(0, 0),
         if m.sum() < 50:
             good[i] = False
             continue
-        r = q[i, m] / ref[m]
+        r = np.log(np.maximum(q[i, m] / ref[m], 1e-6))
         A = A_full[m]
         sel = np.ones(len(r), bool)
         for _ in range(3):                                     # robust: drop the far misfits
@@ -345,12 +353,10 @@ def flat_area_planes(stack, boxes, lights, frame_size, offset=(0, 0),
     coef[~good] = 0.0
     coef[~good, 0] = float(np.median(coef[good, 0]))
     corners = np.array([[1, cu, cv] for cu in (-0.5, 0.5) for cv in (-0.5, 0.5)])
-    g_corner = corners @ coef.T                                 # (4, n)
-    if float(g_corner.min()) <= 0:
-        return None                                             # a plane through zero: not light
+    g_corner = np.exp(corners @ coef.T)                         # (4, n)
     lo = float(g_corner.min())
     falloff = float(np.max((g_corner.max(axis=0) - g_corner.min(axis=0)) / g_corner.mean(axis=0)))
-    centre = coef[:, 0]
+    centre = np.exp(coef[:, 0])
     return {"coef": coef, "factor_min": lo, "falloff": falloff,
             "spread": float(centre[good].max() / centre[good].min()), "used": int(good.sum()),
             "axes": ("level",) + tuple(a for a, on in zip(("left-right", "top-bottom"), axes[1:]) if on)}
@@ -363,7 +369,7 @@ def flat_area_factor(planes: dict, i: int, h: int, w: int, frame_size, offset=(0
     c = planes["coef"][i]
     u = ((np.arange(w, dtype=np.float32) + offset[0]) / W - 0.5)
     v = ((np.arange(h, dtype=np.float32) + offset[1]) / H - 0.5)
-    g = np.float32(c[0]) + np.float32(c[1]) * u[None, :] + np.float32(c[2]) * v[:, None]
+    g = np.exp(np.float32(c[0]) + np.float32(c[1]) * u[None, :] + np.float32(c[2]) * v[:, None])
     return np.float32(planes["factor_min"]) / np.maximum(g, np.float32(1e-6))
 
 

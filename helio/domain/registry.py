@@ -13,7 +13,7 @@ SOLVER_BLURBS = {
     "IRLS (Metallic/Specular)": "Heavier outlier rejection for coins, seals and metal point.",
     "Iterative Specular Separation": "Splits shine from matte before solving. Glazed, varnished or waxed surfaces.",
     "Shadow-Rejection LS": "Drops shadowed frames per pixel. Best when relief is deep enough to cast hard shadows.",
-    "Uncalibrated PCA": "No light directions needed. Rough shape when calibration is impossible.",
+    "Uncalibrated PCA": "No ball: the lights are found from the photographs, taking the lamps as equally strong. Best with one lamp moved round at a steady distance, eight or more frames. Shape, not measurement: on the DiLiGenT benchmark, about as accurate as least squares given the true lights; where the photographs do not bear the lamps out, a rough solve, and it says so.",
     "Sparse-Outlier LS (RPCA)": "Sets aside the few readings a matte surface could not give (a highlight on gold, a cast shadow), however bright, and solves from the rest. Gold tooling, metal, glossy media: the best of Helio's solvers on the DiLiGenT benchmark. Slower.",
 }
 # Offered after the others, under "More solvers": on the DiLiGenT benchmark

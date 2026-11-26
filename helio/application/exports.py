@@ -264,17 +264,19 @@ def stl_print(depth_vis, depth_normalised, normals, w: int, h: int, shared: dict
 def light_file(lights, source: str, path: str, image_paths=None) -> str:
     """A CHI .lp light file, each light named for its image.
 
-    Lights only *estimated* by an Uncalibrated PCA solve are refused: they
-    are known only up to a rotation, and a .lp would present them as measured."""
+    Lights only *estimated* by the no-ball solve (Uncalibrated PCA) are
+    refused: they rest on taking the lamps as equally strong, and a .lp would
+    present them as measured."""
     from helio.io.sidecars import write_lp
     if lights is None or not len(lights):
         raise NothingToExport("No light vectors yet. Calibrate the lights, or import a .lp.")
     if source == "estimated":
         raise NothingToExport(
-            "The only light directions here were recovered by the Uncalibrated PCA solve, "
-            "which resolves them only up to a rotation. Writing them as a .lp would present "
-            "an estimate as a measurement. Calibrate with a chrome sphere, place the lights "
-            "on the dome, or import a .lp.")
+            "These lights were found from the photographs (no ball), on the assumption that "
+            "every lamp was equally strong. They are good enough to solve the shape, but a .lp "
+            "file is read as measured light positions, and these are not. To have a .lp: "
+            "photograph a chrome ball with the object next time (or once, from the same lamp "
+            "positions), place the lights on the dome by hand, or import the rig's .lp.")
     vecs = [tuple(float(c) for c in v) for v in lights]
     write_lp(path, vecs, image_paths)
     return path
@@ -544,7 +546,7 @@ def calibration_report(path: str, *, obj: str, w: int, h: int, n_images: int,
           "  source       : " + {
               "measured": "chrome sphere or imported .lp",
               "dome": "placed on the light dome",
-              "estimated": "recovered by PCA — an estimate, not a measurement",
+              "estimated": "found from the photographs (no ball): an estimate, not a measurement",
           }.get(light_source, "none")]
     if lv:
         el = [float(np.degrees(np.arcsin(max(-1.0, min(1.0, v[2]))))) for v in lv]
@@ -562,8 +564,8 @@ def calibration_report(path: str, *, obj: str, w: int, h: int, n_images: int,
     else:
         L.append("  NOTE         : no light vectors — uncalibrated solve")
     if light_source == "estimated":
-        L.append("  NOTE         : PCA recovers directions only up to a "
-                 "rotation; treat these as indicative, not measured")
+        L.append("  NOTE         : found from the photographs, taking every lamp as "
+                 "equally strong; indicative, not measured")
     L += ["", "SOLVERS", f"  normals      : {normal_engine}", f"  depth        : {depth_engine}", ""]
     with open(path, "w", encoding="utf-8") as fh:
         fh.write("\n".join(L) + "\n")

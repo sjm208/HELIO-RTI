@@ -196,6 +196,10 @@ def main():
           fire("capture.ambient") and p.settings.ambient_frame == flats[0])
     check("Remove Lights-Off Frame forgets it", fire("capture.ambient_clear")
           and p.settings.ambient_frame == "")
+    was = p.settings.normal_engine
+    check("No Ball chooses the solver that finds the lights (tests/test_no_ball.py covers the rest)",
+          fire("capture.no_ball") and p.settings.normal_engine == "Uncalibrated PCA")
+    p.update_settings(normal_engine=was)
 
     print("\nProcess")
     from helio.domain.registry import NORMAL_SOLVERS

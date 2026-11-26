@@ -20,7 +20,7 @@ from helio_qt.workspaces import INSPECTOR_W, SIDE_W, WORKSPACE_CLASSES
 
 # Solve choices with no classic session key: kept under ``helio3`` (written only when not the default).
 SOLVE_KEPT = ("semi_calibrated", "metal_aware", "metal_solver", "metal_sensitivity", "rpca_lambda",
-              "light_field", "lens_calibration")
+              "light_field", "lens_calibration", "no_ball_inside_out", "near_field_distance")
 
 
 def settings():
@@ -1326,6 +1326,7 @@ class MainWindow(QMainWindow):
             self, "Choose a light-position file", str(self.prefs.value("last_folder", "")),
             "Light files (*.lp *.dome *.txt);;All files (*)")
         if path:
+            self.leave_no_ball()
             self.load_light_file(path)
 
     def check_light_frame(self):
@@ -1645,8 +1646,29 @@ class MainWindow(QMainWindow):
     def show_3d_settings(self):
         self.model3d.show_settings()
 
+    def use_no_ball(self):
+        """No ball and no light file: the lights found from the photographs when
+        the capture is processed (the Uncalibrated PCA solver, helio.core.uncalibrated)."""
+        p = self.project
+        if p.settings.resolved_normal_engine() != "Uncalibrated PCA":
+            self._before_no_ball = p.settings.normal_engine
+            p.update_settings(normal_engine="Uncalibrated PCA")
+        self.flash("No ball: Helio finds the lights from the photographs when you process. "
+                   "Best with one lamp moved round at a steady distance; for shape, not "
+                   "measurement.", 10)
+        self.refresh()
+
+    def leave_no_ball(self):
+        """Another light source chosen: back to the solver used before No ball."""
+        p = self.project
+        if p.settings.resolved_normal_engine() == "Uncalibrated PCA":
+            back = getattr(self, "_before_no_ball", "") or "Linear Least Squares"
+            p.update_settings(normal_engine=back if back != "Uncalibrated PCA" else
+                              "Linear Least Squares")
+
     def place_by_hand(self):
         """The Virtual Dome Calibrator: Capture's "By hand" page (helio_qt.hand_dome)."""
+        self.leave_no_ball()
         self.go_workspace("Capture")
         self.workspaces["Capture"].hand.start()
 

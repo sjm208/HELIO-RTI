@@ -59,6 +59,9 @@ TIPS: dict[str, str] = {
                          "dark ball).",
     "capture.outline": "Nudge the ball's outline when it is a little off: every light is read from it.",
     "capture.dome": "Place the lights by hand on the dome, when there is no ball and no .lp file.",
+    "capture.no_ball": "No ball and no light file: Helio finds the lights from the photographs "
+                       "when you process. Best with one lamp moved round at a steady distance; "
+                       "for shape, not measurement.",
     "capture.details": "Who, when, what and with which camera: written into every export's metadata "
                        "and paradata.",
     "capture.drift": "Check whether the camera or object moved between frames (a moving frame blurs "

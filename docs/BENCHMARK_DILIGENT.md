@@ -105,3 +105,23 @@ report means of roughly 5–8° in their own papers.
   The accuracy check on a gauge block (Measure › Accuracy check) covers those
   on a real rig.
 - One run, no tuning: every solver at Helio's default settings.
+
+## No ball: the lights found from the photographs
+
+The no-ball solve (`helio.core.uncalibrated`, the Uncalibrated PCA solver) is given the photographs alone: no light directions, no strengths. It takes the lamps as equally strong, keeps the turn whose normals form a real surface, and settles raised against sunken from the cast shadows. Below, mean angular error in degrees. "Even" divides each frame by its light's intensity, as one lamp moved round would give; 10% and 20% scale each frame at random by that much. Where the photographs do not bear the lamps out, it falls back to the rough solve and says so. `python tools/benchmark_no_ball.py`.
+
+| Object | Least squares, true lights | Rough (old) | No ball, even | 10% uneven | 20% uneven |
+|---|---|---|---|---|---|
+| ball | 4.3 | 55.0 | 4.5 | 5.8 | 9.3 |
+| cat | 8.4 | 44.9 | 9.6 | 10.0 | 11.0 |
+| pot1 | 9.1 | 48.1 | 8.8 | 9.0 | 10.2 |
+| bear | 8.9 | 47.4 | 11.7 | 12.0 | 12.5 |
+| pot2 | 14.9 | 50.7 | 14.3 | 14.1 | 14.4 |
+| buddha | 15.1 | 50.0 | 14.6 | 14.5 | 14.7 |
+| goblet | 18.7 | 52.9 | 16.5 | 16.4 | 16.4 |
+| reading | 19.1 | 55.9 | 22.4 | 23.2 | 42.0 |
+| cow | 25.6 | 34.8 | 19.3 | 19.8 | 20.4 |
+| harvest | 30.5 | 43.9 | 30.8 | 31.1 | 46.4 (rough) |
+| **mean** | 15.5 | 48.4 | 15.3 | 15.6 | 19.7 |
+
+With the lamps even, finding the lights from the photographs is about as accurate as least squares given the true ones; the rough solve it replaces was 48 degrees out. With DiLiGenT's own lamps as photographed, which differ sixfold, the equal-lamp step does not hold: the error is about 30 degrees (19-32), still better than the rough solve, and the checks send three of the ten to the rough solve. A no-ball capture wants one lamp, moved round at a steady distance.

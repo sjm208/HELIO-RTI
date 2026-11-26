@@ -16,7 +16,7 @@ from helio.domain import ProcessingSettings
 
 # Why something is unavailable.  One wording per reason, everywhere.
 NEED_IMAGES = "Import images first: File › Import Images…"
-NEED_LIGHTS = "Set the lights first, in Capture (or choose the Uncalibrated PCA solver)"
+NEED_LIGHTS = "Set the lights first, in Capture (or choose No ball there)"
 NEED_SOLVE = "Process the images first"
 NEED_SCALE = "Needs a measured scale: set one in Measure"
 NOT_RUNNING = "Nothing is running"

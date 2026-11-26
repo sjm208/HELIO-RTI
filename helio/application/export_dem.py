@@ -296,8 +296,8 @@ def dem_package(D, out_dir: str, obj_name: str, *, mm_per_px=None, z_mm_per_unit
                     _nm = _names[_i] if _i < len(_names) else f"image_{_i:03d}"
                     _lf.write(f"{_nm} {_lx:.6f} {_ly:.6f} {_lz:.6f}\n")
         elif _lv_src == "estimated":
-            _log.info("GIS DEM: light directions are PCA estimates, "
-                     "not measurements — .lp sidecar not written")
+            _log.info("GIS DEM: the lights were found from the photographs (no ball), "
+                      "not measured: .lp sidecar not written")
     except Exception:
         _log.exception("GIS DEM — .lp sidecar")
 

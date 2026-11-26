@@ -92,7 +92,7 @@ def photometric_stereo_pca(I_flat):
 
 
 def solve_near_field_normals(images, L_mat, h, w, dome_radius_px=None, origin=(0.0, 0.0),
-                             positions=None, equal_power=True):
+                             positions=None, equal_power=True, falloff=True):
     """Normals under point lights at a finite distance (inverse-square falloff).
 
     The lights sit on a dome 1.5 image-widths away; each pixel sees each
@@ -114,6 +114,10 @@ def solve_near_field_normals(images, L_mat, h, w, dome_radius_px=None, origin=(0
     nearer the object lights it more (1/d²); otherwise (the frames already
     evened to one strength, by a grey patch, flat areas or semi-calibrated)
     each is 1 where the lights were measured (*origin*), as on the dome.
+    
+    With *falloff* False the frames' fall-off across the frame has already
+    been evened (flat areas, helio.core.flash): only each light's direction
+    changes from pixel to pixel, or the fall-off would be taken out twice.
     """
     dome_radius = float(dome_radius_px) if dome_radius_px else max(h, w) * 1.5
     # Pixel positions in the lights' frame: +Y up, so the top row is +h/2
@@ -142,7 +146,10 @@ def solve_near_field_normals(images, L_mat, h, w, dome_radius_px=None, origin=(0
         P[:, 1] = ys[idx // w]
         Lp = S[:, None, :] - P[None, :, :]                             # (n, b, 3)
         d2 = np.einsum('kbi,kbi->kb', Lp, Lp)
-        Lf = Lp * (norm2[:, None] / (d2 * np.sqrt(d2)))[..., None]     # unit * R^2/d^2
+        if falloff:
+            Lf = Lp * (norm2[:, None] / (d2 * np.sqrt(d2)))[..., None]     # unit * R^2/d^2
+        else:                                   # the fall-off already evened (flat areas): direction only
+            Lf = Lp / np.sqrt(d2)[..., None]
         AtA = np.einsum('kbi,kbj->bij', Lf, Lf)
         Atb = np.einsum('kbi,kb->bi', Lf, I_flat[:, start:end].astype(np.float64))
         try:

@@ -299,6 +299,8 @@ class SolveResult:
     ambient: dict | None = None                # the lights-off frame subtracted: its file and level; or None
     metal: dict | None = None                  # metal-aware: the solver, the share re-solved; or None
     metal_mask: np.ndarray | None = None       # (h, w) uint8, 255 = re-solved by the metal solver
+    no_ball: dict | None = None                # no ball: how the lights were found (helio.core.uncalibrated)
+    lamp_distance: dict | None = None          # how far the lamps were, from the photographs, and what was used
     rbf: dict | None = None                    # helio.core.rbf_relight.build: the frames, for RBF Relight
     reflectance_rgb: np.ndarray | None = None  # helio.core.reflectance: RAW captures only
     light_field: dict | None = None            # the white-board light field applied (CAL-005): what it did
@@ -670,12 +672,21 @@ def result_mm_per_px(r, mm_per_px_full):
     return mm_per_px_full / r.work_scale if getattr(r, "work_scale", 1.0) not in (0, None) else mm_per_px_full
 
 
-def near_field_radius_px(ps, mm_per_px, h: int, w: int):
+def near_field_radius_px(ps, mm_per_px, h: int, w: int, found=None):
     """The dome radius in this image's pixels, and where it came from.
 
-    With Near-field correction on, or its solver chosen, and a measured scale, it is the dome radius
-    the user gave, in millimetres, over the scale.  Otherwise the classic
-    guess: 1.5 times the image's longer side."""
+    *found* is helio.core.lamp_distance.estimate's answer for these frames.
+    With Lamp distance "From the photographs" (the default) a sure estimate
+    is used ("photographs"), and lamps the photographs show to be far away
+    are taken as distant ("far": the correction then changes nothing).
+    Otherwise, or with "From the dome radius", the dome radius the user gave
+    in millimetres over the measured scale ("measured"); with no scale, the
+    classic guess, 1.5 times the image's longer side ("assumed")."""
+    if getattr(ps, "near_field_distance", "photos") != "radius" and found:
+        if found.get("sure") and found.get("radius_px"):
+            return float(found["radius_px"]), "photographs"
+        if found.get("far_away"):
+            return max(h, w) * 1000.0, "far"
     if (ps.near_field or ps.normal_engine == "Near-Field Attenuation") and mm_per_px:
         return float(ps.dome_radius_mm) / float(mm_per_px), "measured"
     return max(h, w) * 1.5, "assumed"
@@ -755,21 +766,22 @@ def _apply_light_field(ps, lights, grey_stack, raw_frames, base_size, crop, prog
 
 
 def _solve_normals(engine, flat_grey, grey_stack, L, h, w, ps, flat_ref=None, mm_per_px=None,
-                   origin=None, positions=None, equal_power=True):
+                   origin=None, positions=None, equal_power=True, found=None, falloff=True):
     """*flat_grey*/*grey_stack* are the intensities solved (linear light,
     FIX-010); *flat_ref* the values as stored, which the robust solvers'
     weights and thresholds are defined on."""
     from helio.core.photometric_stereo import (
         intensity_weighted_ls, irls_photometric_stereo, iterative_specular_separation_ps,
-        photometric_stereo_pca, shadow_rejection_ls, solve_near_field_normals)
+        shadow_rejection_ls, solve_near_field_normals)
     if engine == "Uncalibrated PCA":
-        L, normals = photometric_stereo_pca(flat_grey)
+        from helio.core.uncalibrated import solve_no_ball
+        L, normals, _info = solve_no_ball(flat_grey, h, w)
         return normals.reshape(h, w, 3), L
     if engine == "Near-Field Attenuation" or (ps.near_field and L is not None):
-        radius, _src = near_field_radius_px(ps, mm_per_px, h, w)
+        radius, _src = near_field_radius_px(ps, mm_per_px, h, w, found)
         return solve_near_field_normals(grey_stack, L, h, w, dome_radius_px=radius,
                                         origin=origin or (0.0, 0.0), positions=positions,
-                                        equal_power=equal_power), L
+                                        equal_power=equal_power, falloff=falloff), L
     if engine == "Sparse-Outlier LS (RPCA)":
         from helio.core.robust_ps import sparse_outlier_normals
         return sparse_outlier_normals(L, flat_grey, h, w, lam=ps.rpca_lambda), L
@@ -785,6 +797,44 @@ def _solve_normals(engine, flat_grey, grey_stack, L, h, w, ps, flat_ref=None, mm
                                                 n_iters=3), L
     from helio.core.photometric_stereo import linear_least_squares_normals
     return linear_least_squares_normals(L, flat_grey).reshape(h, w, 3), L   # Rust if built, else strips
+
+
+def _lamp_distance(ps, stack, L, origin, positions, h, w, mm_per_px, raw_frames=None, curve=None):
+    """How far the lamps were, read from the frames (helio.core.lamp_distance),
+    whether or not the near-field correction is on: with it on, a sure answer
+    sets its distance; with it off, Process can say when the lamps were close
+    enough to bend a flat object.  None with no lights, or lights placed from
+    two balls (their positions are measured already).  Never stops a solve."""
+    if L is None or positions is not None or len(L) < 5:
+        return None
+    try:
+        import cv2
+        from helio.core.lamp_distance import WORK_SIDE, estimate
+        from helio.core.radiometry import solve_intensities
+        # a reduced copy, read as the solve reads light: frame by frame, so a
+        # 100 MP capture is never decoded whole a second time
+        k = min(1.0, 2.0 * WORK_SIDE / float(max(h, w)))
+        size = (max(8, int(round(w * k))), max(8, int(round(h * k))))
+        small = np.stack([cv2.resize(np.asarray(f, np.float32), size, interpolation=cv2.INTER_AREA)
+                          for f in stack])
+        small = np.asarray(solve_intensities(small, ps.photo_tone, raw_frames, curve), np.float32)
+        found = estimate(small, L, origin=(origin[0] * k, origin[1] * k))
+        for key in ("radius_px",):
+            if found.get(key):
+                found[key] = found[key] / k
+    except Exception:
+        _log.debug("lamp distance: not read", exc_info=True)
+        return None
+    near = ps.near_field or ps.normal_engine == "Near-Field Attenuation"
+    radius, src = near_field_radius_px(ps, mm_per_px, h, w, found)
+    rec = dict(ratio=found["ratio"], sure=found["sure"], far_away=found["far_away"],
+               gain=found["gain"], used=bool(near), source=src if near else "",
+               radius_px=radius if near else None)
+    _log.info("lamp distance: " + (f"about {found['ratio']:.1f} x the frame's longer side"
+                                   if found["ratio"] else "far" if found["far_away"] else "unclear")
+              + (f" ({'sure' if found['sure'] else 'a guess'})" if found["ratio"] else "")
+              + (f"; near-field radius {radius:.0f} px ({src})" if near else ""))
+    return rec
 
 
 def _subtract_ambient(ps, grey_stack, rgb_list, raw_frames, *, work_scale, load_box, region_hw, crop,
@@ -874,7 +924,8 @@ def _even_flash(ps, lights, grey_stack, rgb_list, raw_frames, crop, frame_size=(
                 coverage=coverage([parse_box(ps.flash_ref)], frame_size))
 
 
-def _even_flat_areas(ps, lights, grey_stack, rgb_list, raw_frames, crop, frame_size, curve=None):
+def _even_flat_areas(ps, lights, grey_stack, rgb_list, raw_frames, crop, frame_size, curve=None,
+                     near=None):
     """The flash's fall-off across the frame (CAL-004), measured on the
     areas marked flat and divided out of every frame: grey and colour, as
     the solve reads them (photo_tone) and as stored.  None, with a log line,
@@ -888,7 +939,10 @@ def _even_flat_areas(ps, lights, grey_stack, rgb_list, raw_frames, crop, frame_s
     offset = (crop[0], crop[1]) if crop is not None else (0, 0)
     n, h, w = grey_stack.shape[:3]
     lin = solve_intensities(grey_stack, ps.photo_tone, raw_frames, curve)
-    planes = flat_area_planes(lin, boxes, lights, frame_size, offset)
+    model = None
+    if near is not None:                      # (radius px, origin): the near-field solve's lamps
+        model = _flat_light_model(lights, near[0], near[1], h, w)
+    planes = flat_area_planes(lin, boxes, lights, frame_size, offset, model=model)
     disagree = area_disagreement(lin, boxes, lights, offset)
     del lin
     if planes is None:
@@ -912,6 +966,22 @@ def _even_flat_areas(ps, lights, grey_stack, rgb_list, raw_frames, crop, frame_s
                 spread=planes["spread"], used=planes["used"], axes=list(planes["axes"]),
                 coef=planes["coef"].tolist(), disagree=disagree,
                 coverage=coverage(boxes, frame_size))
+
+
+def _flat_light_model(lights, radius, origin, h: int, w: int):
+    """The light each lamp gives a flat, facing surface at stack pixels
+    (xs, ys), as the near-field solve models it (photometric_stereo.
+    solve_near_field_normals: lamps *radius* px from *origin*, 1 there)."""
+    S = np.asarray(lights, np.float64) * float(radius)
+    ox, oy = origin
+
+    def model(xs, ys):
+        X = np.stack([(np.asarray(xs) - (w - 1) / 2.0) - ox, ((h - 1) / 2.0 - np.asarray(ys)) - oy,
+                      np.zeros(len(xs))], 1)
+        Lp = S[:, None, :] - X[None, :, :]
+        d2 = np.einsum("kmi,kmi->km", Lp, Lp)
+        return Lp[..., 2] * float(radius) ** 2 / (d2 * np.sqrt(d2))     # n = +Z: the z part
+    return model
 
 
 def region_box(crop, ref_size, full_size):
@@ -1152,6 +1222,15 @@ def _solve(req, progress, check, ps, prof, ptm_only=False, auto_tone=False):
             ps, grey_stack, rgb_list, raw_frames, work_scale=work_scale, load_box=load_box,
             region_hw=region_hw, crop=crop, progress=progress, curve=curve)
     grey_stack, rgb_list, raw_gain = _raw_exposure(grey_stack, rgb_list, raw_frames)
+    # How far the lamps were, read before anything evens the frames (the
+    # fall-off across the frame is half of what shows the distance).
+    lamp_distance = None
+    if req.lights is not None and ps.resolved_normal_engine() != "Uncalibrated PCA":
+        h0, w0 = grey_stack.shape[1:3]
+        nf_origin = near_field_origin(ps, req.light_origin, crop, h0, w0)
+        nf_positions = near_field_positions(req.light_positions, crop, h0, w0)
+        lamp_distance = _lamp_distance(ps, grey_stack, req.lights, nf_origin, nf_positions,
+                                       h0, w0, req.mm_per_px, raw_frames=raw_frames, curve=curve)
     light_field = None
     if ps.light_field and req.lights is not None:
         grey_stack, light_field = _apply_light_field(ps, req.lights, grey_stack, raw_frames,
@@ -1159,8 +1238,13 @@ def _solve(req, progress, check, ps, prof, ptm_only=False, auto_tone=False):
     flash = None
     flat_light = None
     if ps.even_flat and ps.flat_areas and req.lights is not None:
+        near = None
+        if ps.near_field and lamp_distance is not None and req.light_positions is None:
+            hh, ww = grey_stack.shape[1:3]
+            near = (near_field_radius_px(ps, req.mm_per_px, hh, ww, lamp_distance)[0],
+                    near_field_origin(ps, req.light_origin, crop, hh, ww))
         flat_light = _even_flat_areas(ps, req.lights, grey_stack, rgb_list, raw_frames, crop,
-                                      (base_w, base_h), curve)
+                                      (base_w, base_h), curve, near=near)
         if flat_light is not None:
             grey_stack, rgb_list = flat_light.pop("grey_stack"), flat_light.pop("rgb_list")
     if flat_light is None and ps.even_flash and ps.flash_ref and req.lights is not None:
@@ -1215,13 +1299,38 @@ def _solve(req, progress, check, ps, prof, ptm_only=False, auto_tone=False):
     from helio.core.radiometry import solve_intensities
     solve_stack = solve_intensities(grey_stack, ps.photo_tone, raw_frames, curve)
     flat_solve = solve_stack.reshape(len(solve_stack), -1)
-    normals, L = _solve_normals(engine, flat_solve, solve_stack, L, h, w, ps,
-                                flat_ref=None if solve_stack is grey_stack else flat_grey,
-                                mm_per_px=req.mm_per_px,
-                                origin=near_field_origin(ps, req.light_origin, crop, h, w),
-                                positions=near_field_positions(req.light_positions, crop, h, w),
-                                # strengths already evened on a reference: each lamp 1 there
-                                equal_power=flash is None and flat_light is None and light_strength is None)
+    no_ball = None
+    if engine == "Uncalibrated PCA":
+        # No ball: the lights found from the photographs (helio.core.uncalibrated),
+        # whatever lights the capture has, as the solver has always done.
+        from helio.core.uncalibrated import solve_no_ball
+        L, n_flat, no_ball = solve_no_ball(flat_solve, h, w)
+        normals = n_flat.reshape(h, w, 3)
+        if ps.no_ball_inside_out:                  # raised for sunken: half a turn about the view
+            normals[..., :2] *= -1.0
+            L = np.asarray(L, np.float32).copy()
+            L[:, :2] *= -1.0
+            no_ball["inside_out"] = True
+        _log.info(f"no ball: lights {no_ball['used']}"
+                  + (f" ({no_ball['why']})" if no_ball["why"] else
+                     f", lamps even to {no_ball['spread'] * 100:.0f}%, raised by {no_ball['raised']}"))
+    else:
+        nf_origin = near_field_origin(ps, req.light_origin, crop, h, w)
+        nf_positions = near_field_positions(req.light_positions, crop, h, w)
+        # The white-board light field has measured each lamp's fall-off pixel by
+        # pixel and divided it out: the near-field solve then corrects the
+        # direction only.  Flat areas even it with a plane, too coarse to stand
+        # in for the lamps' own fall-off (on a flat binding under lamps 1.5
+        # frame-widths away, direction only left 6 degrees, the full model 1.5).
+        evened = light_field is not None
+        normals, L = _solve_normals(engine, flat_solve, solve_stack, L, h, w, ps,
+                                    flat_ref=None if solve_stack is grey_stack else flat_grey,
+                                    mm_per_px=req.mm_per_px,
+                                    origin=nf_origin, positions=nf_positions,
+                                    found=lamp_distance, falloff=not evened,
+                                    # strengths already evened on a reference: each lamp 1 there
+                                    equal_power=(flash is None and flat_light is None
+                                                 and light_strength is None))
     metal = metal_mask = None
     if ps.metal_aware:
         progress(None, 0.38, "Re-solving where the surface shines")
@@ -1354,7 +1463,8 @@ def _solve(req, progress, check, ps, prof, ptm_only=False, auto_tone=False):
         alignment_shifts=shifts, flash=flash, flat_light=flat_light,
         work_scale=work_scale if full_size is not None else 1.0, source_size=full_size,
         ptm_deferred=defer, ptm_planes=ptm_planes, refit=user_req if defer else None,
-        light_strength=light_strength, metal=metal, metal_mask=metal_mask, rbf=rbf,
+        light_strength=light_strength, metal=metal, metal_mask=metal_mask, rbf=rbf, no_ball=no_ball,
+        lamp_distance=lamp_distance,
         reflectance_rgb=reflectance, raw_gain=raw_gain, light_field=light_field, lens=lens_note,
         tone_curve=(("sRGB" if curve is None else curve.name) if ps.photo_tone == "srgb" else ""),
         lights_placed=(int(np.isfinite(np.asarray(req.light_positions, float)).all(axis=1).sum())

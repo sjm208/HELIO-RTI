@@ -42,6 +42,43 @@ def strength_key(s) -> str:
         return "photos"
     return "off"
 
+
+def _found(p):
+    r = getattr(p, "result", None) if getattr(p, "solved", False) else None
+    return getattr(r, "lamp_distance", None) if r is not None else None
+
+
+def lamp_distance_text(p, s, positions) -> str:
+    """What the near-field correction uses for the lamps' distance, in words."""
+    if positions is not None:
+        return "Each lamp where the two balls place it."
+    rec = _found(p)
+    if s.near_field_distance == "radius":
+        return ("Radius from the measured scale." if p.scale_mm_per_px else
+                "No scale yet: the lamps are assumed 1.5 image-widths away. Set the scale in "
+                "Measure to use the radius.")
+    if rec is None:
+        return "The lamps' distance is found from the photographs when you process."
+    if rec.get("ratio") and rec.get("sure"):
+        return (f"The photographs put the lamps about {rec['ratio']:.1f} times the picture's "
+                "longer side away.")
+    if rec.get("far_away"):
+        return ("The photographs show the lamps far enough away not to matter: the correction "
+                "changes nothing.")
+    return ("The photographs do not show the lamps' distance clearly: "
+            + ("the dome radius with the measured scale is used." if p.scale_mm_per_px else
+               "they are assumed 1.5 image-widths away."))
+
+
+def near_field_hint(p, s) -> str:
+    """A line for the Solve section when the lamps were close and nothing corrects it."""
+    rec = _found(p)
+    if s.near_field or not rec or not rec.get("sure") or not rec.get("ratio") or rec["ratio"] > 4.0:
+        return ""
+    return (f"The lamps look close: about {rec['ratio']:.1f} times the picture's longer side away. "
+            "On a flat object that bends the result into a dish. Near-field correction "
+            "takes it out; check it once on a flat card shot the same way.")
+
 class _Sig(QObject):
     done = Signal(str, object, str)
 
@@ -237,6 +274,7 @@ class ProcessWorkspace:
         vl.setSpacing(12)
         il.addWidget(VScroll(body), 1)
         self.rows = {}
+        self.chk = {}
 
         sec = Section("Solve", "p_solve", store)
         sec.add(label("Normal solver", "secondary"))
@@ -253,6 +291,25 @@ class ProcessWorkspace:
         sec.add(self.solver)
         self.solver_note = label("", "caption", wrap=True)
         sec.add(self.solver_note)
+        # Lamps close to a flat object bend it into a dish: said when the photographs show it.
+        self.nf_hint = label("", "caption", wrap=True)
+        sec.add(self.nf_hint)
+        self.btn_nf_on = button("Turn on near-field correction", "quiet",
+                                "Light model › Near-field correction, with the lamp distance "
+                                "found from the photographs. Process again to see it.")
+        self.btn_nf_on.clicked.connect(lambda: self.project.update_settings(near_field=True))
+        sec.add(self.btn_nf_on)
+        # No ball: what the solve found, and the one choice it cannot always make.
+        self.no_ball_note = label("", "caption", wrap=True)
+        sec.add(self.no_ball_note)
+        c = QCheckBox("Turn the relief inside out")
+        c.setToolTip("No ball: raised and sunken are told apart from the cast shadows, or by "
+                     "taking the object to stand up from its surround. If the relief came out "
+                     "inside out (the tooling sunk where it is raised), tick this and process "
+                     "again.")
+        c.toggled.connect(lambda v: self.project.update_settings(no_ball_inside_out=bool(v)))
+        sec.add(c)
+        self.chk["no_ball_inside_out"] = c
         self.rows["shadow_thresh"] = sec.add(ParamRow(_ctl(
             "shadow_thresh", "Shadow threshold", 5, 40, 12, 1,
             "A frame much darker at a pixel than that pixel's own bright frames is treated as shadow "
@@ -311,7 +368,6 @@ class ProcessWorkspace:
         self.light_sec = sec
         sec.add(label("Uneven light makes flat things look tilted. Work down the list.",
                       "caption", wrap=True))
-        self.chk = {}
         # Ambient: the light every frame shares (daylight, room light), from a lights-off frame.
         sec.add(label("Lights off · daylight or room light", "secondary", wrap=True))
         self.ambient_note = label("", "caption", wrap=True)
@@ -503,11 +559,21 @@ class ProcessWorkspace:
         sec = Section("Light model", "p_light", store, open_=False)
         self.chk["near_field"] = QCheckBox("Near-field correction (small dome)")
         self.chk["near_field"].setToolTip(
-            "Lights on a small dome are not infinitely far: each pixel sees each light from its "
-            "own direction and distance. Uses the dome radius with the measured scale.")
+            "Lamps close to the object light each point from a slightly different direction, "
+            "and the near side more brightly. On a flat object that bends the result into a "
+            "dish. This takes it out, given how far the lamps were: found from the "
+            "photographs, or the dome radius with a measured scale.")
         self.chk["near_field"].toggled.connect(
             lambda v: self.project.update_settings(near_field=bool(v)))
         sec.add(self.chk["near_field"])
+        self.nf_dist_label = sec.add(label("Lamp distance", "secondary"))
+        self.nf_dist = Segmented([("photos", "From the photographs"), ("radius", "Dome radius")], {
+            "photos": "Found from the photographs: the distance at which every pixel's "
+                      "brightnesses best fit a matte surface. With two balls, their measured "
+                      "positions are used instead.",
+            "radius": "The dome radius below, with the scale measured in Measure."})
+        self.nf_dist.chosen.connect(lambda k: self.project.update_settings(near_field_distance=k))
+        sec.add(self.nf_dist)
         self.rows["dome_radius_mm"] = sec.add(ParamRow(_ctl(
             "dome_radius_mm", "Dome radius", 50, 2000, 200, 5,
             "Distance from the lights to the object.", "mm")))
@@ -1115,7 +1181,10 @@ class ProcessWorkspace:
         for k in ("sfs_iters", "sfs_prior"):
             self.rows[k].setVisible(s.sfs_refine)
         near = s.near_field or s.normal_engine == "Near-Field Attenuation"    # the solver needs them too
-        self.rows["dome_radius_mm"].setVisible(near)
+        self.nf_dist.set_current(s.near_field_distance)
+        for w_ in (self.nf_dist, self.nf_dist_label):
+            w_.setVisible(near and self.win.light_positions() is None)
+        self.rows["dome_radius_mm"].setVisible(near and s.near_field_distance == "radius")
         self.nf_note.setVisible(near)
         self.nf_from.setVisible(near)
         self.nf_from_label.setVisible(near)
@@ -1128,11 +1197,21 @@ class ProcessWorkspace:
         else:
             where = ("No ball position (lights from a file or by hand): centred on the "
                      "picture's middle.")
-        self.nf_note.setText(where + " " + ("Radius from the measured scale."
-                                            if p.scale_mm_per_px else
-                                            "No scale yet: the dome is assumed 1.5 image-widths "
-                                            "away. Set the scale in Measure to use the radius."))
+        self.nf_note.setText(where + " " + lamp_distance_text(p, s, self.win.light_positions()))
+        tip = near_field_hint(p, s)
+        self.nf_hint.setText(tip)
+        for w_ in (self.nf_hint, self.btn_nf_on):
+            w_.setVisible(bool(tip))
         self.solver_note.setText(self.solver_blurbs.get(s.normal_engine, ""))
+        no_ball = s.resolved_normal_engine() == "Uncalibrated PCA"
+        self.chk["no_ball_inside_out"].setVisible(no_ball)
+        if no_ball:
+            from helio_qt.capture_ws import no_ball_status
+            line, tip = no_ball_status(p)
+            from helio_qt.capture_ws import _short
+            self.no_ball_note.setText(_short(line))
+            self.no_ball_note.setToolTip(tip)
+        self.no_ball_note.setVisible(no_ball)
         self.depth_note.setText(self.depth_blurbs.get(s.depth_engine, ""))
         info = self.win.flat_ref_info
         self.flat_note.setText(f"{info['n']} flat images, {info['w']} × {info['h']} px"

@@ -39,6 +39,31 @@ def _frames_worded(numbers: list[int]) -> str:
 
 # ── the ball on the photograph ───────────────────────────────────────────
 
+
+def _short(line: str) -> str:
+    """A no-ball line without its "No ball · ", beside the No ball button that says it."""
+    rest = line.split(" · ", 1)[1] if line.startswith("No ball · ") else line
+    return rest[:1].upper() + rest[1:]
+
+
+def no_ball_status(p) -> tuple[str, str]:
+    """(one line, tooltip) for a capture with no ball: what the last solve
+    found, or what will happen when it is processed."""
+    rec = getattr(getattr(p, "result", None), "no_ball", None) if getattr(p, "solved", False) else None
+    if not rec:
+        return ("No ball · the lights are found when you process",
+                "Helio finds the lights from the photographs, taking the lamps as equally strong.")
+    if rec.get("used") == "found":
+        spread = rec.get("spread") or 0.0
+        how = {"shadows": "the cast shadows", "surround": "the object standing up from its surround"}
+        return (f"No ball · lights found from the photographs (lamps even to {spread * 100:.0f}%)",
+                "Raised and sunken were told apart by " + how.get(rec.get("raised"), "a guess")
+                + ". If the relief comes out inside out, use Process › Invert Relief.")
+    return ("No ball · rough: " + (rec.get("why") or "the lights could not be found"),
+            "The rough solve faces the surface to the camera and leaves its depth unscaled. "
+            "For better: one lamp moved round at a steady distance, eight or more photographs, "
+            "or a chrome ball in the frame.")
+
 class SphereView(Viewport):
     """A photograph with the sphere's outline and every frame's highlight.
 
@@ -333,13 +358,18 @@ class CaptureWorkspace:
         self.card_hand = Card("Place lights by hand",
                               "Drag each light onto a virtual dome; estimate from shadows.",
                               "No sphere", "dome")
+        self.card_none = Card("No ball",
+                              "Helio finds the lights from the photographs. For shape, "
+                              "not measurement.",
+                              "Estimate", "light")
+        self.card_none.clicked.connect(lambda: self.reg.trigger("capture.no_ball"))
         self.card_sphere.clicked.connect(lambda: self.reg.trigger("capture.sphere"))
         self.card_file.clicked.connect(lambda: self.reg.trigger("file.import_lp"))
         self.card_hand.clicked.connect(lambda: self.reg.trigger("capture.dome"))
         self.cards_box = QWidget()
         self.cards_box.setLayout(cards)
         cards.setContentsMargins(0, 0, 0, 0)
-        for c in (self.card_sphere, self.card_file, self.card_hand):
+        for c in (self.card_sphere, self.card_file, self.card_hand, self.card_none):
             cards.addWidget(c, 1)
         pl.addWidget(self.cards_box)
         # Once the lights have a source, the cards fold into one line.
@@ -348,13 +378,16 @@ class CaptureWorkspace:
         mr.setContentsMargins(0, 0, 0, 0)
         mr.setSpacing(8)
         self.method = Segmented([("sphere", "Chrome sphere"), ("file", "Light file"),
-                                 ("hand", "By hand")],
+                                 ("hand", "By hand"), ("none", "No ball")],
                                 {"sphere": "A chrome ball photographed with the object: its "
                                            "highlight in each frame gives that light.",
                                  "file": "A light-position file (.lp) from a calibrated dome or "
                                          "another program.",
                                  "hand": "Place the lights yourself on a dome, from a template, "
-                                         "a reference photograph or the shadows."})
+                                         "a reference photograph or the shadows.",
+                                 "none": "No ball and no file: Helio finds the lights from the "
+                                         "photographs when you process (the Uncalibrated PCA "
+                                         "solver). Shape, not measurement."})
         self.method.chosen.connect(self._method_chosen)
         mr.addWidget(self.method)
         self.method_status = label("", "secondary")
@@ -616,7 +649,7 @@ class CaptureWorkspace:
     def recolour(self, t):
         from helio_qt import icons
         self.empty_icon.setPixmap(icons.icon("images", t.text3, 56).pixmap(56, 56))
-        for c in (self.card_sphere, self.card_file, self.card_hand):
+        for c in (self.card_sphere, self.card_file, self.card_hand, self.card_none):
             c.recolour(t)
         self.grid.well = t.image_well
         self.strip.well = t.image_well
@@ -626,7 +659,10 @@ class CaptureWorkspace:
         self.ok_colour, self.accent = t.ok, t.accent
 
     def _method_chosen(self, key):
-        aid = {"sphere": "capture.sphere", "file": "file.import_lp", "hand": "capture.dome"}[key]
+        aid = {"sphere": "capture.sphere", "file": "file.import_lp", "hand": "capture.dome",
+               "none": "capture.no_ball"}[key]
+        if key != "none":
+            self.win.leave_no_ball()
         if key == "sphere" and self.project.calibration is not None:
             self.project.set_lights(self.project.calibration.lights, "sphere",
                                     sphere=self.project.calibration.sphere.as_tuple(),
@@ -944,10 +980,14 @@ class CaptureWorkspace:
         if hand_mode:
             self.hand.refresh()
         # cards, or the one-line switch once a source is chosen
-        chosen = p.lights is not None or p.busy == "sphere"
+        no_ball = p.settings.resolved_normal_engine() == "Uncalibrated PCA"
+        chosen = p.lights is not None or p.busy == "sphere" or no_ball
         self.cards_box.setVisible(not chosen)
         self.method_row.setVisible(chosen)
-        self.method.set_current("sphere" if p.light_source == "sphere" or p.busy == "sphere" else
+        self.card_none.set_selected(no_ball)
+        self.card_none.set_status("One lamp, moved round at a steady distance", "")
+        self.method.set_current("none" if no_ball else
+                                "sphere" if p.light_source == "sphere" or p.busy == "sphere" else
                                 "file" if p.light_source.startswith("file:") else
                                 "hand" if hand_mode else "")
         self.card_sphere.set_selected(sphere_mode)
@@ -976,6 +1016,7 @@ class CaptureWorkspace:
         else:
             self.card_file.set_status("Choose a file…", "")
         self.method_status.setText(
+            _short(no_ball_status(p)[0]) if no_ball else
             self.card_sphere.status.text() if sphere_mode or p.busy == "sphere" else
             self.card_file.status.text() if p.light_source.startswith("file:") else
             f"Placed by hand · {len(p.lights)} lights" if hand_mode and p.lights is not None else

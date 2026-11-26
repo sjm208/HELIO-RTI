@@ -56,6 +56,10 @@ class ProcessingSettings:
     # held fixed, and every frame evened to them.  Nothing to mark; the flat
     # areas and the grey patch take precedence when they are on.
     semi_calibrated: bool = False
+    # No ball (helio.core.uncalibrated): the relief the no-ball solve found,
+    # turned inside out (raised for sunken, the lights to the other side),
+    # for when its reading of the cast shadows was wrong.
+    no_ball_inside_out: bool = False
     # Ambient (lights-off) frame: a photograph taken with the lamps off and
     # everything else as for the lit frames.  Its light, which every frame
     # shares (daylight, room light), is subtracted in linear light from each
@@ -98,6 +102,11 @@ class ProcessingSettings:
     # saved and reported but never read; now they are (FIX-012).
     near_field: bool = False
     dome_radius_mm: float = 200.0
+    # How far the lamps were, for the near-field correction: "photos" found
+    # from the photographs (helio.core.lamp_distance), falling back to the
+    # dome radius with a scale, else 1.5 image-widths; "radius" the dome
+    # radius above with the measured scale.
+    near_field_distance: str = "photos"
     near_field_from: str = "ball"       # "ball": the dome centred where the lights were measured;
                                         # "centre": on the picture's middle (as before 2026-10-20)
     sfs_refine: bool = False
